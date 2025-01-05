@@ -13,10 +13,8 @@ const connectDB = async () => {
       throw new Error('MongoDB connection URI is missing. Check your .env file!');
     }
 
-    // MongoDB connection options
+    // MongoDB connection options - removed deprecated options
     const options = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       serverSelectionTimeoutMS: 30000,  // Timeout after 30 seconds
       socketTimeoutMS: 45000,           // Close sockets after 45 seconds
       connectTimeoutMS: 30000,          // Return error after 30 seconds
