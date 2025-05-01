@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 
-// Import the Application model
+// Import the Application model - adjust path if needed
 const Application = require('../models/Application');
 
 // Create new application
@@ -59,7 +59,7 @@ exports.createApplication = async (req, res) => {
       },
       agreeToCommunication: req.body.agreeToCommunication === 'true',
       termsAccepted: req.body.termsAccepted === 'true',
-      submittedBy: req.user?.userId // Link to authenticated user
+      submittedBy: req.user?.userId // Link to authenticated user - matches your model field name
     });
 
     // Save to database
@@ -111,7 +111,8 @@ exports.getApplicationById = async (req, res) => {
     }
     
     // Check if user is authorized (admin or the application owner)
-    if (!req.user.isAdmin && application.submittedBy.toString() !== req.user.userId.toString()) {
+    if (!req.user.isAdmin && application.submittedBy && 
+        application.submittedBy.toString() !== req.user.userId.toString()) {
       return res.status(403).json({
         message: 'Not authorized to view this application'
       });

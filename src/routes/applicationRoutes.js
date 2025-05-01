@@ -8,7 +8,11 @@ const fs = require('fs');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
 // Import the controller
+// Make sure the path is correct and the file exists
 const applicationController = require('../controllers/applicationController');
+
+// Debug to check if controller functions exist
+console.log('Controller functions available:', Object.keys(applicationController));
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, '../../uploads');
@@ -50,21 +54,30 @@ const uploadFields = upload.fields([
   { name: 'idCardBack', maxCount: 1 }
 ]);
 
+// Define fallback handlers in case there's an issue with the controller
+const fallbackHandler = (req, res) => {
+  res.status(501).json({ message: 'Route handler not properly implemented' });
+};
+
 // Create new application
-router.post('/', protect, uploadFields, applicationController.createApplication);
+router.post('/', protect, uploadFields, 
+  applicationController.createApplication || fallbackHandler);
 
 // Get user's own applications
-router.get('/user', protect, applicationController.getUserApplications);
+router.get('/user', protect, 
+  applicationController.getUserApplications || fallbackHandler);
 
-// Admin routes - get all applications
-// These specific routes must come before the /:id pattern
-router.get('/admin/all', protect, adminOnly, applicationController.getAllApplications);
+// Admin routes - Make sure these come BEFORE the /:id route
+router.get('/admin/all', protect, adminOnly, 
+  applicationController.getAllApplications || fallbackHandler);
 
 // Admin routes - update application status
-router.put('/admin/:id/status', protect, adminOnly, applicationController.updateApplicationStatus);
+router.put('/admin/:id/status', protect, adminOnly, 
+  applicationController.updateApplicationStatus || fallbackHandler);
 
 // Get application by ID (authorized users only)
-// This route with parameter must come after specific routes
-router.get('/:id', protect, applicationController.getApplicationById);
+// This MUST come after more specific routes like /admin/all
+router.get('/:id', protect, 
+  applicationController.getApplicationById || fallbackHandler);
 
 module.exports = router;
