@@ -4,11 +4,12 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const connectDB = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes');
-const grantRoutes = require('./src/routes/grantRoutes');
+const grantRoutes = require('./src/routes/grantRoutes'); // Updated import
 const applicationRoutes = require('./src/routes/applicationRoutes');
 const path = require('path');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const fs = require('fs');
 
 // Create Express app
 const app = express();
@@ -45,28 +46,32 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Serve static files for uploaded documents
-const uploadDir = path.join(__dirname, 'uploads');
-app.use('/uploads', express.static(uploadDir));
-
 // Ensure uploads directory exists
-const fs = require('fs');
+const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Database connection
-connectDB();
+// Serve static files for uploaded documents
+app.use('/uploads', express.static(uploadDir));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Database connection
+connectDB();
+
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/grants', grantRoutes);
+app.use('/api/grants', grantRoutes); // Using the new grant routes
 app.use('/api/applications', applicationRoutes);
+
+// Simple test route
+app.get('/test', (req, res) => {
+  res.status(200).json({ message: "API is working correctly!" });
+});
 
 // Preflight CORS handling
 app.options('*', cors(corsOptions));
