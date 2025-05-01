@@ -6,6 +6,11 @@ const {
   getUserApplications,
   getApplicationById
 } = require('../controllers/applicationController');
+const { 
+  createApplication, 
+  getUserApplications,
+  getApplicationById
+} = require('../controllers/grantApplicationController');
 const multer = require('multer');
 const path = require('path');
 
