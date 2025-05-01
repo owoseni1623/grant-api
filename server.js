@@ -6,6 +6,7 @@ const connectDB = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes');
 const grantRoutes = require('./src/routes/grantRoutes'); // Updated import
 const applicationRoutes = require('./src/routes/applicationRoutes');
+const adminRoutes = require('./src/routes/adminRoutes');
 const path = require('path');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -67,6 +68,7 @@ connectDB();
 app.use('/api/auth', authRoutes);
 app.use('/api/grants', grantRoutes); // Using the new grant routes
 app.use('/api/applications', applicationRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Simple test route
 app.get('/test', (req, res) => {
