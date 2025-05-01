@@ -1,16 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
+const { protect, adminOnly } = require('../middleware/authMiddleware');
 const { 
   createApplication, 
   getUserApplications,
-  getApplicationById
+  getApplicationById,
+  getAllApplications,
+  updateApplicationStatus
 } = require('../controllers/applicationController');
-const { 
-  createApplication, 
-  getUserApplications,
-  getApplicationById
-} = require('../controllers/grantApplicationController');
+const grantApplicationController = require('../controllers/grantApplicationController');
 const multer = require('multer');
 const path = require('path');
 
@@ -50,13 +48,21 @@ const uploadFields = upload.fields([
   { name: 'idCardBack', maxCount: 1 }
 ]);
 
-// Create new application
+// Application routes from applicationController
 router.post('/', protect, uploadFields, createApplication);
-
-// Get user's applications
 router.get('/user', protect, getUserApplications);
-
-// Get single application by ID
 router.get('/:id', protect, getApplicationById);
+
+// Admin routes for application management
+router.get('/admin/all', protect, adminOnly, getAllApplications);
+router.put('/admin/:id/status', protect, adminOnly, updateApplicationStatus);
+
+// Grant application routes from grantApplicationController
+router.post('/grants', grantApplicationController.submitGrantApplication);
+router.get('/grants/status/:applicationId', grantApplicationController.getGrantApplicationStatus);
+router.get('/grants/user', grantApplicationController.getUserApplications);
+router.get('/grants', grantApplicationController.getAllGrants);
+router.get('/grants/category/:category', grantApplicationController.getGrantsByCategory);
+router.get('/grants/search', grantApplicationController.searchGrants);
 
 module.exports = router;
