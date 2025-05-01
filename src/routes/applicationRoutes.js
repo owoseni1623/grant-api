@@ -1,17 +1,25 @@
 const express = require('express');
 const router = express.Router();
-const { protect, adminOnly } = require('../middleware/authMiddleware');
-const applicationController = require('../controllers/applicationController');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 
-// Check if controllers exist and log them
-console.log('Application Controller functions:', Object.keys(applicationController));
+// Import middleware for authentication
+const { protect, adminOnly } = require('../middleware/authMiddleware');
+
+// Import the controller
+const applicationController = require('../controllers/applicationController');
+
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, '../../uploads');
+if (!fs.existsSync(uploadDir)){
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function(req, file, cb) {
-    cb(null, 'uploads/');
+    cb(null, uploadDir);
   },
   filename: function(req, file, cb) {
     cb(null, `${Date.now()}-${file.originalname}`);
@@ -20,10 +28,8 @@ const storage = multer.diskStorage({
 
 // File filter to only allow images and PDFs
 const fileFilter = (req, file, cb) => {
-  const allowedFileTypes = ['.jpg', '.jpeg', '.png', '.pdf'];
-  const ext = path.extname(file.originalname).toLowerCase();
-  
-  if (allowedFileTypes.includes(ext)) {
+  const allowedFileTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+  if (allowedFileTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
     cb(new Error('Invalid file type. Only JPG, PNG, and PDF files are allowed.'));
@@ -44,28 +50,19 @@ const uploadFields = upload.fields([
   { name: 'idCardBack', maxCount: 1 }
 ]);
 
-// Safe approach: only add routes where controller functions are defined
-if (applicationController.createApplication) {
-  router.post('/', protect, uploadFields, applicationController.createApplication);
-}
+// Create new application
+router.post('/', protect, uploadFields, applicationController.createApplication);
 
-if (applicationController.getUserApplications) {
-  router.get('/user', protect, applicationController.getUserApplications);
-}
+// Get user's own applications
+router.get('/user', protect, applicationController.getUserApplications);
 
-if (applicationController.getApplicationById) {
-  router.get('/:id', protect, applicationController.getApplicationById);
-}
+// Get application by ID (authorized users only)
+router.get('/:id', protect, applicationController.getApplicationById);
 
-if (applicationController.getAllApplications) {
-  router.get('/admin/all', protect, adminOnly, applicationController.getAllApplications);
-}
+// Admin routes - get all applications
+router.get('/admin/all', protect, adminOnly, applicationController.getAllApplications);
 
-if (applicationController.updateApplicationStatus) {
-  router.put('/admin/:id/status', protect, adminOnly, applicationController.updateApplicationStatus);
-}
-
-// Remove the problematic grant application routes for now
-// We'll handle them separately
+// Admin routes - update application status
+router.put('/admin/:id/status', protect, adminOnly, applicationController.updateApplicationStatus);
 
 module.exports = router;
