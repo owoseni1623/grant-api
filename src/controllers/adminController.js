@@ -1,6 +1,127 @@
+const User = require('../models/User');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const GrantApplication = require('../models/GrantApplication');
 const path = require('path');
-const User = require('../models/User'); // Assuming you have a User model
+
+// Generate admin JWT token with longer expiry
+const generateAdminToken = (userId) => {
+  return jwt.sign({ userId, isAdmin: true }, process.env.JWT_SECRET, {
+    expiresIn: '7d' // Admin tokens last 7 days
+  });
+};
+
+// Admin login
+exports.loginAdmin = async (req, res) => {
+  const { username, password } = req.body;
+  
+  try {
+    // Find admin user by email (username)
+    const admin = await User.findOne({ email: username, role: 'ADMIN' });
+    
+    if (!admin) {
+      return res.status(401).json({ 
+        message: 'Invalid admin credentials'
+      });
+    }
+    
+    // Verify password
+    const isMatch = await admin.comparePassword(password);
+    
+    if (!isMatch) {
+      return res.status(401).json({ 
+        message: 'Invalid admin credentials'
+      });
+    }
+    
+    // Generate admin token
+    const token = generateAdminToken(admin._id);
+    
+    // Return admin info and token
+    res.json({
+      id: admin._id,
+      firstName: admin.firstName,
+      lastName: admin.lastName,
+      email: admin.email,
+      role: admin.role,
+      token
+    });
+    
+  } catch (error) {
+    console.error('Admin Login Error:', error);
+    res.status(500).json({ 
+      message: 'Server error during admin login', 
+      error: error.message 
+    });
+  }
+};
+
+// Verify admin token
+exports.verifyAdminToken = async (req, res) => {
+  try {
+    // Token verification happens in middleware
+    // If we get here, the token is valid
+    
+    // Return simple verification response
+    res.json({
+      valid: true,
+      userId: req.user.userId
+    });
+    
+  } catch (error) {
+    console.error('Token Verification Error:', error);
+    res.status(500).json({ 
+      message: 'Server error verifying token',
+      valid: false
+    });
+  }
+};
+
+// Create initial admin user (should be called only during setup)
+exports.createAdminUser = async (adminData) => {
+  try {
+    // Check if admin already exists
+    const existingAdmin = await User.findOne({ role: 'ADMIN' });
+    
+    if (existingAdmin) {
+      console.log('Admin user already exists');
+      return { success: false, message: 'Admin user already exists' };
+    }
+    
+    // Create admin user
+    const admin = new User({
+      firstName: adminData.firstName,
+      lastName: adminData.lastName,
+      email: adminData.email,
+      primaryPhone: adminData.phone || '0000000000',
+      password: adminData.password,
+      role: 'ADMIN',
+      isVerified: true
+    });
+    
+    await admin.save();
+    
+    console.log('Admin user created successfully');
+    return { 
+      success: true, 
+      message: 'Admin user created successfully',
+      admin: {
+        id: admin._id,
+        email: admin.email,
+        firstName: admin.firstName,
+        lastName: admin.lastName
+      }
+    };
+    
+  } catch (error) {
+    console.error('Admin Creation Error:', error);
+    return { 
+      success: false, 
+      message: 'Failed to create admin user',
+      error: error.message
+    };
+  }
+};
 
 // Get all applications with filtering and pagination
 exports.getAllApplications = async (req, res) => {
@@ -131,3 +252,6 @@ exports.generateReports = async (req, res) => {
     });
   }
 };
+
+// Export generateAdminToken for use in other files if needed
+module.exports.generateAdminToken = generateAdminToken;

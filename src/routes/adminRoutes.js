@@ -9,7 +9,11 @@ const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
-// Route for getting all applications
+// Admin authentication routes
+router.post('/login', asyncHandler(adminController.loginAdmin));
+router.get('/verify-token', authMiddleware, adminMiddleware, asyncHandler(adminController.verifyAdminToken));
+
+// Application management routes (protected)
 router.get('/applications', 
     authMiddleware, 
     adminMiddleware, 
@@ -30,11 +34,24 @@ router.patch('/applications/:id/status',
     asyncHandler(adminController.updateApplicationStatus)
 );
 
+// Alternative route for updating status (from second route file)
+router.put('/applications/:id/status', 
+    authMiddleware, 
+    adminMiddleware, 
+    asyncHandler(adminController.updateApplicationStatus)
+);
+
 // Route for generating reports
 router.get('/reports', 
     authMiddleware, 
     adminMiddleware, 
     asyncHandler(adminController.generateReports)
 );
+
+// This route was in the second routes file but controller isn't implemented yet
+router.get('/documents/:path', authMiddleware, adminMiddleware, (req, res) => {
+  // This will be implemented in documentController
+  res.status(501).json({ message: 'Not implemented yet' });
+});
 
 module.exports = router;
