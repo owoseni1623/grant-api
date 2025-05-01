@@ -5,6 +5,7 @@ const cors = require('cors');
 const connectDB = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes');
 const grantRoutes = require('./src/routes/grantRoutes');
+const applicationRoutes = require('./src/routes/applicationRoutes');
 const path = require('path');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -65,6 +66,7 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/grants', grantRoutes);
+app.use('/api/applications', applicationRoutes);
 
 // Preflight CORS handling
 app.options('*', cors(corsOptions));
