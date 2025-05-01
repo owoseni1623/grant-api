@@ -1,6 +1,6 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
-const { createAdminUser } = require('./controllers/adminController');
+const { createAdminUser } = require('./src/controllers/adminController');
 const readline = require('readline');
 
 // Create readline interface
