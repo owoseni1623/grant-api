@@ -58,7 +58,7 @@ router.get('/admin/all', protect, adminOnly, getAllApplications);
 router.put('/admin/:id/status', protect, adminOnly, updateApplicationStatus);
 
 // Grant application routes from grantApplicationController
-router.post('/grants', grantApplicationController.submitGrantApplication);
+router.post('/grants', uploadFields, grantApplicationController.submitGrantApplication);
 router.get('/grants/status/:applicationId', grantApplicationController.getGrantApplicationStatus);
 router.get('/grants/user', grantApplicationController.getUserApplications);
 router.get('/grants', grantApplicationController.getAllGrants);
