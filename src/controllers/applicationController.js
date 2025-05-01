@@ -2,65 +2,8 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 
-// Define the Application Schema if it doesn't exist already
-// Make sure to create this model in your models directory
-let Application;
-try {
-  Application = mongoose.model('Application');
-} catch {
-  const ApplicationSchema = new mongoose.Schema({
-    personalInfo: {
-      firstName: { type: String, required: true },
-      lastName: { type: String, required: true },
-      email: { type: String, required: true },
-      phoneNumber: { type: String, required: true },
-      dateOfBirth: { type: Date, required: true },
-      ssn: { type: String, required: true },
-      gender: String,
-      ethnicity: String
-    },
-    employmentInfo: {
-      employmentStatus: String,
-      incomeLevel: String,
-      educationLevel: String,
-      citizenshipStatus: String
-    },
-    addressInfo: {
-      streetAddress: { type: String, required: true },
-      city: { type: String, required: true },
-      state: { type: String, required: true },
-      zip: { type: String, required: true }
-    },
-    fundingInfo: {
-      fundingType: { type: String, required: true },
-      fundingAmount: { type: Number, required: true },
-      fundingPurpose: String,
-      timeframe: String
-    },
-    documents: {
-      idCardFront: String,
-      idCardBack: String
-    },
-    agreeToCommunication: Boolean,
-    termsAccepted: { type: Boolean, required: true },
-    status: {
-      type: String,
-      enum: ['PENDING', 'APPROVED', 'REJECTED'],
-      default: 'PENDING'
-    },
-    statusHistory: [{
-      status: String,
-      changedBy: mongoose.Schema.Types.ObjectId,
-      changedAt: Date
-    }],
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    }
-  }, { timestamps: true });
-
-  Application = mongoose.model('Application', ApplicationSchema);
-}
+// Import the Application model
+const Application = require('../models/Application');
 
 // Create new application
 exports.createApplication = async (req, res) => {
@@ -116,7 +59,7 @@ exports.createApplication = async (req, res) => {
       },
       agreeToCommunication: req.body.agreeToCommunication === 'true',
       termsAccepted: req.body.termsAccepted === 'true',
-      userId: req.user?.userId // Link to authenticated user
+      submittedBy: req.user?.userId // Link to authenticated user
     });
 
     // Save to database
@@ -141,7 +84,7 @@ exports.getUserApplications = async (req, res) => {
   try {
     const userId = req.user.userId;
     
-    const applications = await Application.find({ userId })
+    const applications = await Application.find({ submittedBy: userId })
       .sort({ createdAt: -1 })
       .select('_id status fundingInfo.fundingType createdAt');
     
@@ -168,7 +111,7 @@ exports.getApplicationById = async (req, res) => {
     }
     
     // Check if user is authorized (admin or the application owner)
-    if (!req.user.isAdmin && application.userId.toString() !== req.user.userId.toString()) {
+    if (!req.user.isAdmin && application.submittedBy.toString() !== req.user.userId.toString()) {
       return res.status(403).json({
         message: 'Not authorized to view this application'
       });

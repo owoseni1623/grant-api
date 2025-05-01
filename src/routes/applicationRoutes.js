@@ -56,13 +56,15 @@ router.post('/', protect, uploadFields, applicationController.createApplication)
 // Get user's own applications
 router.get('/user', protect, applicationController.getUserApplications);
 
-// Get application by ID (authorized users only)
-router.get('/:id', protect, applicationController.getApplicationById);
-
 // Admin routes - get all applications
+// These specific routes must come before the /:id pattern
 router.get('/admin/all', protect, adminOnly, applicationController.getAllApplications);
 
 // Admin routes - update application status
 router.put('/admin/:id/status', protect, adminOnly, applicationController.updateApplicationStatus);
+
+// Get application by ID (authorized users only)
+// This route with parameter must come after specific routes
+router.get('/:id', protect, applicationController.getApplicationById);
 
 module.exports = router;
