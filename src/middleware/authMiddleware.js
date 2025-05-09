@@ -1,108 +1,142 @@
-// src/middleware/authMiddleware.js
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Admin = require('../models/Admin'); // Assuming you have an Admin model
 
 // JWT Secret with fallback
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
 /**
- * Middleware to protect routes and authenticate users (for regular users)
+ * Middleware to protect routes and authenticate regular users
  */
 const protect = async (req, res, next) => {
   let token;
-
-  // Check if authorization header exists and starts with Bearer
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
-  ) {
+  
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       // Get token from header
       token = req.headers.authorization.split(' ')[1];
-
+      
       // Verify token
       const decoded = jwt.verify(token, JWT_SECRET);
-
+      
       // Find user by ID in the token, exclude password
       const user = await User.findById(decoded.userId).select('-password');
-
+      
       if (!user) {
         return res.status(401).json({ message: 'Not authorized, user not found' });
       }
-
+      
       // Attach user to the request object
       req.user = {
         userId: user._id,
         email: user.email
       };
-
+      
       next();
     } catch (error) {
       console.error('Authorization Error:', error);
-
-      // Differentiated error responses
+      
       if (error.name === 'JsonWebTokenError') {
         return res.status(401).json({ message: 'Invalid token' });
       }
-
       if (error.name === 'TokenExpiredError') {
         return res.status(401).json({ message: 'Token expired' });
       }
-
+      
       res.status(401).json({ message: 'Not authorized' });
     }
   } else {
-    // If no token is present
     return res.status(401).json({ message: 'Not authorized, no token' });
   }
 };
 
 /**
- * Middleware for admin routes authentication
+ * Middleware to verify admin tokens specifically
+ * This aligns with how your AdminPanel.js expects authentication to work
  */
-const authMiddleware = async (req, res, next) => {
+const verifyAdminToken = async (req, res, next) => {
   let token;
-
-  // Check if authorization header exists and starts with Bearer
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
-  ) {
+  
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       // Get token from header
       token = req.headers.authorization.split(' ')[1];
-
+      
       // Verify token
       const decoded = jwt.verify(token, JWT_SECRET);
       
-      // Find user by id
+      // Check if this is an admin token
+      if (!decoded.isAdmin) {
+        return res.status(403).json({ message: 'Not authorized as admin' });
+      }
+      
+      // Find admin by ID
+      const admin = await Admin.findById(decoded.adminId);
+      
+      if (!admin) {
+        return res.status(401).json({ message: 'Admin not found' });
+      }
+      
+      // Attach admin info to request
+      req.admin = {
+        adminId: admin._id,
+        username: admin.username
+      };
+      
+      next();
+    } catch (error) {
+      console.error('Admin Authorization Error:', error);
+      
+      if (error.name === 'JsonWebTokenError') {
+        return res.status(401).json({ message: 'Invalid admin token' });
+      }
+      if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({ message: 'Admin token expired' });
+      }
+      
+      res.status(401).json({ message: 'Not authorized as admin' });
+    }
+  } else {
+    return res.status(401).json({ message: 'Admin access denied, no token provided' });
+  }
+};
+
+/**
+ * Legacy middleware - use only if needed for backward compatibility
+ */
+const authMiddleware = async (req, res, next) => {
+  let token;
+  
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET);
+      
       const user = await User.findById(decoded.userId).select('-password');
       
       if (!user) {
         return res.status(401).json({ message: 'User not found' });
       }
       
-      // Add user to request
       req.user = decoded;
       req.userDetails = user;
       next();
-      
     } catch (error) {
       console.error('Auth Middleware Error:', error);
       res.status(401).json({ message: 'Token is not valid' });
     }
   } else {
-    // If no token is present
     return res.status(401).json({ message: 'Not authorized, no token' });
   }
 };
 
 /**
- * Middleware to check if user is an admin
+ * Middleware to check if user is an admin (role-based approach)
+ * Note: This is different from verifyAdminToken and should only be used
+ * if your admin users are in the same collection as regular users
  */
 const adminMiddleware = async (req, res, next) => {
   try {
-    // Check if user has admin role
     if (!req.userDetails || req.userDetails.role !== 'ADMIN') {
       return res.status(403).json({ message: 'Access denied, admin role required' });
     }
@@ -114,9 +148,9 @@ const adminMiddleware = async (req, res, next) => {
   }
 };
 
-// Export both the original middleware for regular routes and the admin middleware
 module.exports = {
   protect,
   authMiddleware,
-  adminMiddleware
+  adminMiddleware,
+  verifyAdminToken  // Export the new middleware
 };
