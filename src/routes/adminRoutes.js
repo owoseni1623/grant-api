@@ -1,24 +1,25 @@
 const express = require('express');
 const router = express.Router();
-const adminController = require('../controllers/adminController');
-const documentController = require('../controllers/documentController');
-const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
+const { protect, isAdmin } = require('../middleware/authMiddleware');
 
-// Handle async errors
-const asyncHandler = fn => (req, res, next) => {
-  Promise.resolve(fn(req, res, next)).catch(next);
-};
+// Import admin controllers (to be implemented)
+const {
+  getAllApplications,
+  getApplicationById,
+  updateApplicationStatus,
+  getDashboardStats
+} = require('../controllers/adminController');
 
-// IMPORTANT: This route should NOT have authMiddleware since we're trying to log in
-router.post('/login', asyncHandler(adminController.loginAdmin));
+// All routes here require authentication and admin privileges
+router.use(protect);
+router.use(isAdmin);
 
-// Protected routes below
-router.get('/verify-token', authMiddleware, adminMiddleware, asyncHandler(adminController.verifyAdminToken));
-router.get('/applications', authMiddleware, adminMiddleware, asyncHandler(adminController.getAllApplications));
-router.get('/applications/:id', authMiddleware, adminMiddleware, asyncHandler(adminController.getApplicationDetails));
-router.patch('/applications/:id/status', authMiddleware, adminMiddleware, asyncHandler(adminController.updateApplicationStatus));
-router.put('/applications/:id/status', authMiddleware, adminMiddleware, asyncHandler(adminController.updateApplicationStatus));
-router.get('/reports', authMiddleware, adminMiddleware, asyncHandler(adminController.generateReports));
-router.get('/documents/:path', authMiddleware, adminMiddleware, asyncHandler(documentController.downloadDocument));
+// Dashboard stats
+router.get('/dashboard', getDashboardStats);
+
+// Application management
+router.get('/applications', getAllApplications);
+router.get('/applications/:id', getApplicationById);
+router.patch('/applications/:id/status', updateApplicationStatus);
 
 module.exports = router;

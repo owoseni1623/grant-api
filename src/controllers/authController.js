@@ -2,8 +2,8 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, {
+const generateToken = (userId, role) => {
+  return jwt.sign({ userId, role }, process.env.JWT_SECRET, {
     expiresIn: '30d'
   });
 };
@@ -52,14 +52,15 @@ exports.registerUser = async (req, res) => {
       email,
       primaryPhone,
       mobilePhone: mobilePhone || '',
-      password
+      password,
+      role: 'USER' // Default role
     });
 
     // Save user with detailed validation
     await user.save();
 
     // Generate token
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.role);
 
     // Send response
     res.status(201).json({
@@ -67,6 +68,7 @@ exports.registerUser = async (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
+      role: user.role,
       token
     });
   } catch (error) {
@@ -102,24 +104,65 @@ exports.loginUser = async (req, res) => {
     // Check password
     if (user && (await user.comparePassword(password))) {
       // Generate token
-      const token = generateToken(user._id);
+      const token = generateToken(user._id, user.role);
       res.json({
         _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
+        role: user.role,
         token
       });
     } else {
       res.status(401).json({ 
         message: 'Invalid credentials',
-        field: ['email', 'password']
+        fields: ['email', 'password']
       });
     }
   } catch (error) {
     console.error('Login Error:', error);
     res.status(500).json({ 
       message: 'Server error during login', 
+      error: error.message 
+    });
+  }
+};
+
+exports.adminLogin = async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    // Check if user exists
+    const user = await User.findOne({ email });
+   
+    // Check password and admin status
+    if (user && (await user.comparePassword(password))) {
+      if (user.role !== 'ADMIN') {
+        return res.status(403).json({ 
+          message: 'Access denied. Admin privileges required.',
+        });
+      }
+      
+      // Generate token for admin
+      const token = generateToken(user._id, user.role);
+      
+      res.json({
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        token
+      });
+    } else {
+      res.status(401).json({ 
+        message: 'Invalid credentials',
+        fields: ['email', 'password']
+      });
+    }
+  } catch (error) {
+    console.error('Admin Login Error:', error);
+    res.status(500).json({ 
+      message: 'Server error during admin login', 
       error: error.message 
     });
   }
@@ -140,7 +183,8 @@ exports.getUserProfile = async (req, res) => {
       lastName: user.lastName,
       email: user.email,
       primaryPhone: user.primaryPhone,
-      mobilePhone: user.mobilePhone
+      mobilePhone: user.mobilePhone,
+      role: user.role
     });
   } catch (error) {
     console.error('Profile Fetch Error:', error);
@@ -170,7 +214,7 @@ exports.forgotPassword = async (req, res) => {
       .update(resetToken)
       .digest('hex');
 
-    // Optional: Add reset token fields to User model if needed
+    // Store reset token fields to User model
     user.resetPasswordToken = hashedToken;
     user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
@@ -184,6 +228,130 @@ exports.forgotPassword = async (req, res) => {
     console.error('Forgot Password Error:', error);
     res.status(500).json({ 
       message: 'Server error processing password reset', 
+      error: error.message 
+    });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  const { token, password, confirmPassword } = req.body;
+  
+  if (password !== confirmPassword) {
+    return res.status(400).json({ 
+      message: 'Validation Error', 
+      errors: [{ 
+        field: 'confirmPassword', 
+        message: 'Passwords must match exactly' 
+      }]
+    });
+  }
+  
+  try {
+    // Hash the token from the request
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+    
+    // Find user with valid token
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+    
+    if (!user) {
+      return res.status(400).json({
+        message: 'Password reset token is invalid or has expired'
+      });
+    }
+    
+    // Update password and clear reset token fields
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    
+    await user.save();
+    
+    // Generate new token
+    const newToken = generateToken(user._id, user.role);
+    
+    res.json({
+      message: 'Password has been reset successfully',
+      token: newToken
+    });
+  } catch (error) {
+    console.error('Reset Password Error:', error);
+    res.status(500).json({ 
+      message: 'Server error resetting password', 
+      error: error.message 
+    });
+  }
+};
+
+// Create admin user (for initial setup or testing)
+exports.createAdminUser = async (req, res) => {
+  const {
+    firstName,
+    lastName,
+    email,
+    password,
+    adminSecret
+  } = req.body;
+
+  // Verify admin creation secret
+  if (adminSecret !== process.env.ADMIN_SECRET) {
+    return res.status(403).json({ message: 'Invalid admin creation secret' });
+  }
+
+  try {
+    // Check if email already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ 
+        message: 'Email is already registered'
+      });
+    }
+
+    // Create new admin user
+    const admin = new User({
+      firstName,
+      lastName,
+      email,
+      primaryPhone: req.body.primaryPhone || '0000000000', // Default if not provided
+      password,
+      role: 'ADMIN'
+    });
+
+    await admin.save();
+
+    res.status(201).json({
+      message: 'Admin user created successfully',
+      admin: {
+        _id: admin._id,
+        firstName: admin.firstName,
+        lastName: admin.lastName,
+        email: admin.email,
+        role: admin.role
+      }
+    });
+  } catch (error) {
+    console.error('Admin Creation Error:', error);
+    res.status(500).json({ 
+      message: 'Server error creating admin user', 
+      error: error.message 
+    });
+  }
+};
+
+// List all users (admin only)
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find({}).select('-password');
+    res.json(users);
+  } catch (error) {
+    console.error('Get All Users Error:', error);
+    res.status(500).json({ 
+      message: 'Server error fetching users', 
       error: error.message 
     });
   }
