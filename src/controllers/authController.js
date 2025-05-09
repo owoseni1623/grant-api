@@ -298,9 +298,23 @@ exports.createAdminUser = async (req, res) => {
     adminSecret
   } = req.body;
 
-  // Verify admin creation secret
-  if (adminSecret !== process.env.ADMIN_SECRET) {
-    return res.status(403).json({ message: 'Invalid admin creation secret' });
+  // Define both the environment variable and a hardcoded backup
+  const expectedSecret = process.env.ADMIN_SECRET || 'motunrayo23!';
+  
+  // Normalize both strings by trimming whitespace and ensuring they're strings
+  const normalizedProvided = String(adminSecret).trim();
+  const normalizedExpected = String(expectedSecret).trim();
+  
+  // Verify admin creation secret with normalized values
+  if (normalizedProvided !== normalizedExpected) {
+    return res.status(403).json({ 
+      message: 'Invalid admin creation secret',
+      // Include additional info in development only
+      debug: process.env.NODE_ENV === 'development' ? {
+        providedLength: normalizedProvided.length,
+        expectedLength: normalizedExpected.length
+      } : undefined
+    });
   }
 
   try {
@@ -336,6 +350,20 @@ exports.createAdminUser = async (req, res) => {
     });
   } catch (error) {
     console.error('Admin Creation Error:', error);
+    
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const errors = Object.keys(error.errors).map(key => ({
+        field: key,
+        message: error.errors[key].message
+      }));
+
+      return res.status(400).json({ 
+        message: 'Validation Error', 
+        errors 
+      });
+    }
+    
     res.status(500).json({ 
       message: 'Server error creating admin user', 
       error: error.message 
