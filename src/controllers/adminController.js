@@ -4,6 +4,9 @@ const bcrypt = require('bcryptjs');
 const GrantApplication = require('../models/GrantApplication');
 const path = require('path');
 
+// Maximum number of admin users allowed
+const MAX_ADMIN_USERS = 4;
+
 // Generate admin JWT token with longer expiry
 const generateAdminToken = (userId) => {
   return jwt.sign({ userId, isAdmin: true }, process.env.JWT_SECRET, {
@@ -77,15 +80,32 @@ exports.verifyAdminToken = async (req, res) => {
   }
 };
 
-// Create initial admin user (should be called only during setup)
+// Create admin user (modified to allow up to MAX_ADMIN_USERS admins)
 exports.createAdminUser = async (adminData) => {
   try {
-    // Check if admin already exists
-    const existingAdmin = await User.findOne({ role: 'ADMIN' });
+    // Check how many admin users already exist
+    const adminCount = await User.countDocuments({ role: 'ADMIN' });
     
-    if (existingAdmin) {
-      console.log('Admin user already exists');
-      return { success: false, message: 'Admin user already exists' };
+    if (adminCount >= MAX_ADMIN_USERS) {
+      console.log(`Maximum number of admin users (${MAX_ADMIN_USERS}) has been reached`);
+      return { 
+        success: false, 
+        message: `Maximum number of admin users (${MAX_ADMIN_USERS}) has been reached`
+      };
+    }
+    
+    // Check if an admin with this email already exists
+    const existingAdminWithEmail = await User.findOne({ 
+      email: adminData.email,
+      role: 'ADMIN'
+    });
+    
+    if (existingAdminWithEmail) {
+      console.log('An admin with this email already exists');
+      return { 
+        success: false, 
+        message: 'An admin with this email already exists'
+      };
     }
     
     // Create admin user
@@ -118,6 +138,29 @@ exports.createAdminUser = async (adminData) => {
     return { 
       success: false, 
       message: 'Failed to create admin user',
+      error: error.message
+    };
+  }
+};
+
+// List all admin users (new function)
+exports.listAdminUsers = async () => {
+  try {
+    const adminUsers = await User.find({ role: 'ADMIN' })
+      .select('firstName lastName email createdAt')
+      .sort({ createdAt: 1 });
+    
+    return {
+      success: true,
+      adminCount: adminUsers.length,
+      maxAdmins: MAX_ADMIN_USERS,
+      admins: adminUsers
+    };
+  } catch (error) {
+    console.error('Error listing admin users:', error);
+    return {
+      success: false,
+      message: 'Failed to retrieve admin users',
       error: error.message
     };
   }
