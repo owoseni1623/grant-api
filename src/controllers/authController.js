@@ -1,10 +1,13 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const bcrypt = require('bcryptjs'); // Add this import
+const bcrypt = require('bcryptjs');
+
+// Import environment configuration
+const env = require('../../env-config');
 
 const generateToken = (userId, role) => {
-  const secret = process.env.JWT_SECRET;
+  const secret = env.JWT_SECRET;
   
   if (!secret) {
     console.error('JWT_SECRET is not defined in environment variables.');

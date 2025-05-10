@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const env = require('../../env-config');
 
 /**
  * Middleware to protect routes by verifying JWT token
@@ -15,8 +16,8 @@ exports.protect = async (req, res, next) => {
       // Extract token from Authorization header
       token = req.headers.authorization.split(' ')[1];
       
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      // Verify token using JWT_SECRET from env config
+      const decoded = jwt.verify(token, env.JWT_SECRET);
       
       // Find user by ID from token and exclude password field
       const user = await User.findById(decoded.userId).select('-password');
