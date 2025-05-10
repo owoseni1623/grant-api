@@ -5,19 +5,25 @@ const fs = require('fs');
 // Check if .env file exists
 const envPath = path.resolve(__dirname, '.env');
 const envExists = fs.existsSync(envPath);
-// Configure dotenv with explicit path and error handling
-const result = dotenv.config({ path: envPath });
-// Validate environment setup
-if (!envExists) {
-  console.warn('⚠️  WARNING: .env file not found at path:', envPath);
-} else if (result.error) {
-  console.error('❌ ERROR: Failed to parse .env file:', result.error.message);
+
+// Only try to load .env file if it exists
+if (envExists) {
+  // Configure dotenv with explicit path and error handling  
+  const result = dotenv.config({ path: envPath });
+  
+  if (result.error) {
+    console.error('❌ ERROR: Failed to parse .env file:', result.error.message);
+  } else {
+    console.log('✅ Environment variables loaded from .env file');
+  }
 } else {
-  console.log('✅ Environment variables loaded successfully from .env file');
+  console.log('ℹ️ No .env file found. Using environment variables from the system.');
 }
+
 // Validate critical environment variables
 const criticalVars = ['JWT_SECRET', 'MONGODB_URI', 'ADMIN_SECRET'];
 const missingVars = criticalVars.filter(v => !process.env[v]);
+
 if (missingVars.length > 0) {
   console.error(`❌ ERROR: Critical environment variables missing: ${missingVars.join(', ')}`);
   
@@ -27,7 +33,7 @@ if (missingVars.length > 0) {
     
     // Set a temporary JWT_SECRET for development only
     if (process.env.NODE_ENV === 'development') {
-      console.warn('⚠️  Setting temporary JWT_SECRET for DEVELOPMENT ONLY');
+      console.warn('⚠️ Setting temporary JWT_SECRET for DEVELOPMENT ONLY');
       process.env.JWT_SECRET = 'temporary_development_secret_do_not_use_in_production';
     }
   }
