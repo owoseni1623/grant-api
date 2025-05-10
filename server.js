@@ -2,13 +2,18 @@ const path = require('path');
 const dotenv = require('dotenv');
 const fs = require('fs');
 
-// Check if .env file exists
+// Always create a clean .env file if in production and no .env exists
+// This will help with environments like Render where env vars are set in the platform
 const envPath = path.resolve(__dirname, '.env');
 const envExists = fs.existsSync(envPath);
 
+// Log environment setup status
+console.log('\n==== ENVIRONMENT SETUP ====');
+console.log(`Running in ${process.env.NODE_ENV || 'development'} mode`);
+console.log(`.env file ${envExists ? 'found' : 'not found'}`);
+
 // Only try to load .env file if it exists
 if (envExists) {
-  // Configure dotenv with explicit path and error handling  
   const result = dotenv.config({ path: envPath });
   
   if (result.error) {
@@ -18,35 +23,55 @@ if (envExists) {
   }
 } else {
   console.log('ℹ️ No .env file found. Using environment variables from the system.');
-}
-
-// Validate critical environment variables
-const criticalVars = ['JWT_SECRET', 'MONGODB_URI', 'ADMIN_SECRET'];
-const missingVars = criticalVars.filter(v => !process.env[v]);
-
-if (missingVars.length > 0) {
-  console.error(`❌ ERROR: Critical environment variables missing: ${missingVars.join(', ')}`);
   
-  // Specifically check JWT_SECRET since that's causing our issue
-  if (!process.env.JWT_SECRET) {
-    console.error('❌ JWT_SECRET is missing - this will cause authentication to fail');
-    
-    // Set a temporary JWT_SECRET for development only
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('⚠️ Setting temporary JWT_SECRET for DEVELOPMENT ONLY');
-      process.env.JWT_SECRET = 'temporary_development_secret_do_not_use_in_production';
+  // For Render.com and similar platforms - create a temporary .env file with system env vars
+  // This helps with systems that expect a .env file to exist
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      // Create basic .env with system variables
+      const envContent = Object.entries(process.env)
+        .filter(([key]) => ['JWT_SECRET', 'MONGODB_URI', 'ADMIN_SECRET', 'PORT'].includes(key))
+        .map(([key, value]) => `${key}=${value}`)
+        .join('\n');
+      
+      fs.writeFileSync(envPath, envContent);
+      console.log('✅ Created temporary .env file from system environment variables');
+    } catch (err) {
+      console.error('⚠️ Could not create temporary .env file:', err.message);
     }
   }
-} else {
-  console.log('✅ All critical environment variables are present');
 }
+
+// Critical JWT_SECRET handling - IMPORTANT
+if (!process.env.JWT_SECRET) {
+  console.error('❌ ERROR: JWT_SECRET environment variable is missing!');
+  
+  // Set a temporary JWT_SECRET for development only
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('⚠️ Setting temporary JWT_SECRET for DEVELOPMENT mode only');
+    process.env.JWT_SECRET = 'temporary_development_secret_do_not_use_in_production';
+  } else {
+    console.error('❌ Cannot continue without JWT_SECRET in production mode');
+    // Don't exit in production as this might cause deployment failures
+    // Instead, authentication will simply fail with proper error messages
+  }
+} else {
+  console.log('✅ JWT_SECRET is properly configured');
+}
+
+// Log critical vars
+console.log('\nCritical environment variables:');
+console.log(`- JWT_SECRET: ${process.env.JWT_SECRET ? '✅ Set' : '❌ Missing'}`);
+console.log(`- MONGODB_URI: ${process.env.MONGODB_URI ? '✅ Set' : '❌ Missing'}`);
+console.log(`- ADMIN_SECRET: ${process.env.ADMIN_SECRET ? '✅ Set' : '❌ Missing'}`);
+console.log('============================\n');
 
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const connectDB = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes');
-const grantRoutes = require('./src/routes/grantRoutes'); // Updated import
+const grantRoutes = require('./src/routes/grantRoutes');
 const applicationRoutes = require('./src/routes/applicationRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const helmet = require('helmet');
@@ -98,7 +123,12 @@ app.use('/uploads', express.static(uploadDir));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.status(200).json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    jwtConfigured: !!process.env.JWT_SECRET
+  });
 });
 
 // Database connection
@@ -106,7 +136,7 @@ connectDB();
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/grants', grantRoutes); // Using the new grant routes
+app.use('/api/grants', grantRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/admin', adminRoutes);
 
