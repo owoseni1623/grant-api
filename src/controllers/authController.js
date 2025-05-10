@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs'); // Add this import
 
 const generateToken = (userId, role) => {
   return jwt.sign({ userId, role }, process.env.JWT_SECRET, {
@@ -97,22 +98,23 @@ exports.registerUser = async (req, res) => {
 
 exports.loginUser = async (req, res) => {
   const { email, password } = req.body;
-  authDebug.log('loginUser', { email, passwordLength: password?.length });
+  console.log('loginUser', { email, passwordLength: password?.length });
   
   try {
     // Check if user exists
     const user = await User.findOne({ email });
-    authDebug.log('User found', user ? { id: user._id, role: user.role } : 'No user found');
+    console.log('User found', user ? { id: user._id, role: user.role } : 'No user found');
    
-    // Check password with explicit debugging
+    // Check password
     if (user) {
-      const isMatch = await authDebug.comparePasswords(password, user.password, bcrypt);
-      authDebug.log('Password match result', isMatch);
+      // Use the comparePassword method defined in your User model
+      const isMatch = await user.comparePassword(password);
+      console.log('Password match result', isMatch);
       
       if (isMatch) {
         // Generate token
         const token = generateToken(user._id, user.role);
-        authDebug.log('Token generated', { token: token.substring(0, 15) + '...' });
+        console.log('Token generated', { token: token.substring(0, 15) + '...' });
         
         res.json({
           _id: user._id,
@@ -127,39 +129,40 @@ exports.loginUser = async (req, res) => {
     }
     
     // If we get here, authentication failed
-    authDebug.log('Authentication failed');
+    console.log('Authentication failed');
     res.status(401).json({ 
       message: 'Invalid credentials',
       fields: ['email', 'password']
     });
   } catch (error) {
-    const errorDetails = authDebug.error('Login Error', error);
+    console.error('Login Error:', error);
     res.status(500).json({ 
       message: 'Server error during login', 
-      error: errorDetails.message 
+      error: error.message 
     });
   }
 };
 
+// Similarly, fix adminLogin function
 exports.adminLogin = async (req, res) => {
   const { email, password } = req.body;
-  authDebug.log('adminLogin', { email, passwordLength: password?.length });
+  console.log('adminLogin', { email, passwordLength: password?.length });
   
   try {
     // Check if user exists
     const user = await User.findOne({ email });
-    authDebug.log('Admin user lookup', user ? { id: user._id, role: user.role } : 'No user found');
+    console.log('Admin user lookup', user ? { id: user._id, role: user.role } : 'No user found');
     
     // Check password and admin status
     if (user) {
-      const isMatch = await authDebug.comparePasswords(password, user.password, bcrypt);
-      authDebug.log('Admin password match', isMatch);
+      const isMatch = await user.comparePassword(password);
+      console.log('Admin password match', isMatch);
       
       if (isMatch) {
-        authDebug.log('Admin role check', { role: user.role, isAdmin: user.role === 'ADMIN' });
+        console.log('Admin role check', { role: user.role, isAdmin: user.role === 'ADMIN' });
         
         if (user.role !== 'ADMIN') {
-          authDebug.log('Not an admin user');
+          console.log('Not an admin user');
           return res.status(403).json({ 
             message: 'Access denied. Admin privileges required.',
           });
@@ -167,7 +170,7 @@ exports.adminLogin = async (req, res) => {
         
         // Generate token for admin
         const token = generateToken(user._id, user.role);
-        authDebug.log('Admin token generated', { token: token.substring(0, 15) + '...' });
+        console.log('Admin token generated', { token: token.substring(0, 15) + '...' });
         
         res.json({
           _id: user._id,
@@ -182,16 +185,16 @@ exports.adminLogin = async (req, res) => {
     }
     
     // If we get here, authentication failed
-    authDebug.log('Admin authentication failed');
+    console.log('Admin authentication failed');
     res.status(401).json({ 
       message: 'Invalid credentials',
       fields: ['email', 'password']
     });
   } catch (error) {
-    const errorDetails = authDebug.error('Admin Login Error', error);
+    console.error('Admin Login Error:', error);
     res.status(500).json({ 
       message: 'Server error during admin login', 
-      error: errorDetails.message 
+      error: error.message 
     });
   }
 };

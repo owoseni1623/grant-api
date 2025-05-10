@@ -1,4 +1,3 @@
-// src/middleware/validationMiddleware.js
 const { body, validationResult } = require('express-validator');
 
 // Validation rules for grant application
