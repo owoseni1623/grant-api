@@ -2,7 +2,6 @@
  * This script validates that all required environment variables are set
  * Run it before starting your server to catch configuration issues early
  */
-
 const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
@@ -18,7 +17,7 @@ if (!envExists) {
   console.log('❌ .env file not found! Please create it based on .env.example');
 } else {
   console.log('✅ .env file found');
-  
+ 
   // Load environment variables
   const result = dotenv.config({ path: envPath });
   if (result.error) {
@@ -44,7 +43,7 @@ let hasErrors = false;
 
 for (const variable of requiredVariables) {
   const value = process.env[variable.name];
-  
+ 
   if (!value) {
     if (variable.required) {
       console.log(`❌ ${variable.name}: Missing (REQUIRED)`);
