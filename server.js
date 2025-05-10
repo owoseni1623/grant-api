@@ -1,4 +1,5 @@
 const env = require('./env-config');
+const config = require('./src/config/config');
 
 const express = require('express');
 const mongoose = require('mongoose');
