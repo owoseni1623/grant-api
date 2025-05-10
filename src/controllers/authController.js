@@ -4,7 +4,14 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs'); // Add this import
 
 const generateToken = (userId, role) => {
-  return jwt.sign({ userId, role }, process.env.JWT_SECRET, {
+  const secret = process.env.JWT_SECRET;
+  
+  if (!secret) {
+    console.error('JWT_SECRET is not defined in environment variables.');
+    throw new Error('JWT configuration error: Secret key is missing');
+  }
+  
+  return jwt.sign({ userId, role }, secret, {
     expiresIn: '30d'
   });
 };
@@ -101,6 +108,15 @@ exports.loginUser = async (req, res) => {
   console.log('loginUser', { email, passwordLength: password?.length });
   
   try {
+    // Validate JWT_SECRET early
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET environment variable is missing');
+      return res.status(500).json({ 
+        message: 'Server configuration error',
+        error: 'Authentication system not properly configured'
+      });
+    }
+    
     // Check if user exists
     const user = await User.findOne({ email });
     console.log('User found', user ? { id: user._id, role: user.role } : 'No user found');
@@ -112,18 +128,26 @@ exports.loginUser = async (req, res) => {
       console.log('Password match result', isMatch);
       
       if (isMatch) {
-        // Generate token
-        const token = generateToken(user._id, user.role);
-        console.log('Token generated', { token: token.substring(0, 15) + '...' });
-        
-        res.json({
-          _id: user._id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          role: user.role,
-          token
-        });
+        try {
+          // Generate token with try/catch
+          const token = generateToken(user._id, user.role);
+          console.log('Token generated', { token: token.substring(0, 15) + '...' });
+          
+          res.json({
+            _id: user._id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            role: user.role,
+            token
+          });
+        } catch (tokenError) {
+          console.error('Token generation error:', tokenError);
+          return res.status(500).json({ 
+            message: 'Error generating authentication token', 
+            error: tokenError.message 
+          });
+        }
         return;
       }
     }
@@ -143,12 +167,20 @@ exports.loginUser = async (req, res) => {
   }
 };
 
-// Similarly, fix adminLogin function
 exports.adminLogin = async (req, res) => {
   const { email, password } = req.body;
   console.log('adminLogin', { email, passwordLength: password?.length });
   
   try {
+    // Validate JWT_SECRET early
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET environment variable is missing');
+      return res.status(500).json({ 
+        message: 'Server configuration error',
+        error: 'Authentication system not properly configured'
+      });
+    }
+    
     // Check if user exists
     const user = await User.findOne({ email });
     console.log('Admin user lookup', user ? { id: user._id, role: user.role } : 'No user found');
@@ -168,18 +200,26 @@ exports.adminLogin = async (req, res) => {
           });
         }
         
-        // Generate token for admin
-        const token = generateToken(user._id, user.role);
-        console.log('Admin token generated', { token: token.substring(0, 15) + '...' });
-        
-        res.json({
-          _id: user._id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          role: user.role,
-          token
-        });
+        try {
+          // Generate token for admin with try/catch
+          const token = generateToken(user._id, user.role);
+          console.log('Admin token generated', { token: token.substring(0, 15) + '...' });
+          
+          res.json({
+            _id: user._id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            role: user.role,
+            token
+          });
+        } catch (tokenError) {
+          console.error('Token generation error:', tokenError);
+          return res.status(500).json({ 
+            message: 'Error generating authentication token', 
+            error: tokenError.message 
+          });
+        }
         return;
       }
     }

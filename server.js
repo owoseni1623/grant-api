@@ -1,4 +1,40 @@
-require('dotenv').config();
+const path = require('path');
+const dotenv = require('dotenv');
+const fs = require('fs');
+
+// Check if .env file exists
+const envPath = path.resolve(__dirname, '.env');
+const envExists = fs.existsSync(envPath);
+// Configure dotenv with explicit path and error handling
+const result = dotenv.config({ path: envPath });
+// Validate environment setup
+if (!envExists) {
+  console.warn('⚠️  WARNING: .env file not found at path:', envPath);
+} else if (result.error) {
+  console.error('❌ ERROR: Failed to parse .env file:', result.error.message);
+} else {
+  console.log('✅ Environment variables loaded successfully from .env file');
+}
+// Validate critical environment variables
+const criticalVars = ['JWT_SECRET', 'MONGODB_URI', 'ADMIN_SECRET'];
+const missingVars = criticalVars.filter(v => !process.env[v]);
+if (missingVars.length > 0) {
+  console.error(`❌ ERROR: Critical environment variables missing: ${missingVars.join(', ')}`);
+  
+  // Specifically check JWT_SECRET since that's causing our issue
+  if (!process.env.JWT_SECRET) {
+    console.error('❌ JWT_SECRET is missing - this will cause authentication to fail');
+    
+    // Set a temporary JWT_SECRET for development only
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('⚠️  Setting temporary JWT_SECRET for DEVELOPMENT ONLY');
+      process.env.JWT_SECRET = 'temporary_development_secret_do_not_use_in_production';
+    }
+  }
+} else {
+  console.log('✅ All critical environment variables are present');
+}
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -7,10 +43,8 @@ const authRoutes = require('./src/routes/authRoutes');
 const grantRoutes = require('./src/routes/grantRoutes'); // Updated import
 const applicationRoutes = require('./src/routes/applicationRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
-const path = require('path');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const fs = require('fs');
 
 // Create Express app
 const app = express();
