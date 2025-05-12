@@ -10,20 +10,29 @@ const {
   createAdminUser,
   getAllUsers
 } = require('../controllers/authController');
-const { protect, isAdmin } = require('../middleware/authMiddleware');
+
+// Import the middleware from the updated authMiddleware file
+const { 
+  authenticateToken, 
+  adminOnly, 
+  protect, 
+  isAdmin,
+  authMiddleware,
+  adminMiddleware
+} = require('../middleware/authMiddleware');
 
 // Public routes
 router.post('/register', registerUser);
-router.post('/login', loginUser);         // This will handle /api/auth/login
-router.post('/admin/login', adminLogin);  // This will handle /api/auth/admin/login
+router.post('/login', loginUser);         
+router.post('/admin/login', adminLogin);  
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 
-// Protected routes
-router.get('/profile', protect, getUserProfile);
+// Protected routes - you can use either authenticateToken or protect (they're aliases)
+router.get('/profile', authenticateToken, getUserProfile);
 
-// Admin routes
-router.post('/admin/create', protect, isAdmin, createAdminUser);
-router.get('/admin/users', protect, isAdmin, getAllUsers);
+// Admin routes - you can use either adminOnly or isAdmin (they're aliases)
+router.post('/admin/create', createAdminUser);  
+router.get('/admin/users', authenticateToken, adminOnly, getAllUsers);
 
 module.exports = router;
