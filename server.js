@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const connectDB = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes');
 const grantRoutes = require('./src/routes/grantRoutes');
@@ -56,53 +57,80 @@ if (!fs.existsSync(uploadDir)) {
 // Serve static files for uploaded documents
 app.use('/uploads', express.static(uploadDir));
 
+// Environment Configuration
+const ENV = {
+  PORT: process.env.PORT || 3000,
+  NODE_ENV: process.env.NODE_ENV || 'development',
+  MONGODB_URI: process.env.MONGODB_URI || '',
+  JWT_SECRET: process.env.JWT_SECRET || '',
+  REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET || '',
+};
+
+// Validate and generate secrets if needed
+const generateSecureSecret = () => {
+  return crypto.randomBytes(64).toString('hex');
+};
+
+// Advanced Environment Validation
+const validateEnvironment = () => {
+  const errors = [];
+
+  // Check critical variables for production
+  if (ENV.NODE_ENV === 'production') {
+    // Validate MongoDB URI
+    if (!ENV.MONGODB_URI) {
+      errors.push('MONGODB_URI is required in production');
+    }
+
+    // Generate JWT Secret if not provided
+    if (!ENV.JWT_SECRET) {
+      console.warn('⚠️ JWT_SECRET not provided. Generating a temporary secret for production is NOT recommended!');
+      ENV.JWT_SECRET = generateSecureSecret();
+      console.warn('🚨 IMPORTANT: Set a permanent JWT_SECRET in your production environment variables!');
+    }
+
+    // Generate Refresh Token Secret if not provided
+    if (!ENV.REFRESH_TOKEN_SECRET) {
+      console.warn('⚠️ REFRESH_TOKEN_SECRET not provided. Generating a temporary secret.');
+      ENV.REFRESH_TOKEN_SECRET = generateSecureSecret();
+      console.warn('🚨 IMPORTANT: Set a permanent REFRESH_TOKEN_SECRET in your production environment variables!');
+    }
+  } else {
+    // Development environment fallbacks
+    ENV.JWT_SECRET = ENV.JWT_SECRET || generateSecureSecret();
+    ENV.REFRESH_TOKEN_SECRET = ENV.REFRESH_TOKEN_SECRET || generateSecureSecret();
+    
+    // Warn about using default MongoDB URI in development
+    if (!ENV.MONGODB_URI) {
+      console.warn('⚠️ MONGODB_URI not set. Using a default development URI is not recommended.');
+    }
+  }
+
+  // Throw error if in strict production mode and critical errors exist
+  if (ENV.NODE_ENV === 'production' && errors.length > 0) {
+    throw new Error(`Configuration Errors: ${errors.join(', ')}`);
+  }
+
+  return ENV;
+};
+
+// Validate Environment
+try {
+  validateEnvironment();
+} catch (error) {
+  console.error('🚨 Environment Validation Failed:', error.message);
+  process.exit(1);
+}
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-    jwtConfigured: !!process.env.JWT_SECRET
+    environment: ENV.NODE_ENV,
+    jwtConfigured: !!ENV.JWT_SECRET
   });
 });
-
-// Validate critical environment variables
-const validateEnvVariables = () => {
-  const environment = process.env.NODE_ENV || 'development';
-  
-  // Critical variables that must be set in production
-  const criticalProdVars = ['JWT_SECRET', 'MONGODB_URI'];
-  
-  // Validate environment-specific requirements
-  if (environment === 'production') {
-    const missingCriticalVars = criticalProdVars.filter(varName => !process.env[varName]);
-    
-    if (missingCriticalVars.length > 0) {
-      console.error('❌ CRITICAL ERROR: Missing critical environment variables in production:', missingCriticalVars);
-      
-      // Generate fallback secrets for development/testing ONLY
-      if (missingCriticalVars.includes('JWT_SECRET')) {
-        const crypto = require('crypto');
-        process.env.JWT_SECRET = crypto.randomBytes(64).toString('hex');
-        console.warn('⚠️ Generated a temporary JWT_SECRET for development. USE A PROPER SECRET IN PRODUCTION!');
-      }
-      
-      // In strict production, throw an error
-      if (environment === 'production') {
-        throw new Error(`Missing critical environment variables: ${missingCriticalVars.join(', ')}`);
-      }
-    }
-  }
-
-  // Warn about missing admin secret
-  if (!process.env.ADMIN_SECRET) {
-    console.warn('⚠️ ADMIN_SECRET is not set. Using default development secret.');
-    console.warn('   It is STRONGLY recommended to set a custom ADMIN_SECRET in production.');
-  }
-};
-
-// Validate environment variables
-validateEnvVariables();
 
 // Database connection
 connectDB();
@@ -134,7 +162,7 @@ app.use((err, req, res, next) => {
   console.error('Unhandled Error:', err);
 
   // Clean the error stack in production
-  const error = process.env.NODE_ENV === 'production' 
+  const error = ENV.NODE_ENV === 'production' 
     ? { message: err.message }
     : { message: err.message, stack: err.stack };
 
@@ -169,16 +197,12 @@ app.use((err, req, res, next) => {
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  
-  // Graceful shutdown
   gracefulShutdown('Unhandled Promise Rejection');
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
-  
-  // Graceful shutdown
   gracefulShutdown('Uncaught Exception');
 });
 
@@ -215,10 +239,9 @@ const gracefulShutdown = async (reason) => {
 };
 
 // Start server
-const PORT = process.env.PORT || 3000;
-const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
+const server = app.listen(ENV.PORT, () => {
+  console.log(`Server running on port ${ENV.PORT}`);
+  console.log(`Environment: ${ENV.NODE_ENV}`);
   console.log(`CORS enabled for: ${corsOptions.origin.join(', ')}`);
 });
 
