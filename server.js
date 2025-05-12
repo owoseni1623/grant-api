@@ -1,6 +1,3 @@
-const env = require('./env-config');
-const config = require('./src/config/config');
-
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -13,6 +10,7 @@ const applicationRoutes = require('./src/routes/applicationRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const helmet = require('helmet');
 const morgan = require('morgan');
+require('dotenv').config(); // Ensure environment variables are loaded
 
 // Create Express app
 const app = express();
@@ -67,6 +65,24 @@ app.get('/health', (req, res) => {
     jwtConfigured: !!process.env.JWT_SECRET
   });
 });
+
+// Validate critical environment variables
+const validateEnvVariables = () => {
+  const requiredVars = ['JWT_SECRET', 'MONGODB_URI'];
+  const missingVars = requiredVars.filter(varName => !process.env[varName]);
+  
+  if (missingVars.length > 0) {
+    console.error('❌ CRITICAL ERROR: Missing environment variables:', missingVars);
+    
+    // In production, throw an error to prevent startup
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`Missing critical environment variables: ${missingVars.join(', ')}`);
+    }
+  }
+};
+
+// Validate environment variables
+validateEnvVariables();
 
 // Database connection
 connectDB();
@@ -147,24 +163,35 @@ process.on('uncaughtException', (error) => {
 });
 
 // Graceful shutdown function
-const gracefulShutdown = (reason) => {
+const gracefulShutdown = async (reason) => {
   console.log(`Initiating graceful shutdown. Reason: ${reason}`);
   
-  server.close(() => {
-    console.log('Server closed');
+  try {
+    // Close server
+    if (server) {
+      await new Promise((resolve, reject) => {
+        server.close((err) => {
+          if (err) reject(err);
+          else {
+            console.log('Server closed');
+            resolve();
+          }
+        });
+      });
+    }
     
     // Close database connection
-    mongoose.connection.close(false, () => {
+    if (mongoose.connection.readyState === 1) {
+      await mongoose.connection.close(false);
       console.log('Database connection closed');
-      process.exit(1);
-    });
-
-    // Force close after 10 seconds
-    setTimeout(() => {
-      console.error('Could not close connections in time, forcefully shutting down');
-      process.exit(1);
-    }, 10000);
-  });
+    }
+    
+    // Exit process
+    process.exit(0);
+  } catch (error) {
+    console.error('Error during graceful shutdown:', error);
+    process.exit(1);
+  }
 };
 
 // Start server
