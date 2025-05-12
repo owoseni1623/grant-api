@@ -68,19 +68,33 @@ app.get('/health', (req, res) => {
 
 // Validate critical environment variables
 const validateEnvVariables = () => {
-  const criticalVars = ['JWT_SECRET', 'MONGODB_URI'];
-  const missingCriticalVars = criticalVars.filter(varName => !process.env[varName]);
+  const environment = process.env.NODE_ENV || 'development';
   
-  if (missingCriticalVars.length > 0) {
-    console.error('❌ CRITICAL ERROR: Missing critical environment variables:', missingCriticalVars);
+  // Critical variables that must be set in production
+  const criticalProdVars = ['JWT_SECRET', 'MONGODB_URI'];
+  
+  // Validate environment-specific requirements
+  if (environment === 'production') {
+    const missingCriticalVars = criticalProdVars.filter(varName => !process.env[varName]);
     
-    // In production, throw an error to prevent startup
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(`Missing critical environment variables: ${missingCriticalVars.join(', ')}`);
+    if (missingCriticalVars.length > 0) {
+      console.error('❌ CRITICAL ERROR: Missing critical environment variables in production:', missingCriticalVars);
+      
+      // Generate fallback secrets for development/testing ONLY
+      if (missingCriticalVars.includes('JWT_SECRET')) {
+        const crypto = require('crypto');
+        process.env.JWT_SECRET = crypto.randomBytes(64).toString('hex');
+        console.warn('⚠️ Generated a temporary JWT_SECRET for development. USE A PROPER SECRET IN PRODUCTION!');
+      }
+      
+      // In strict production, throw an error
+      if (environment === 'production') {
+        throw new Error(`Missing critical environment variables: ${missingCriticalVars.join(', ')}`);
+      }
     }
   }
 
-  // Check ADMIN_SECRET with a warning
+  // Warn about missing admin secret
   if (!process.env.ADMIN_SECRET) {
     console.warn('⚠️ ADMIN_SECRET is not set. Using default development secret.');
     console.warn('   It is STRONGLY recommended to set a custom ADMIN_SECRET in production.');
