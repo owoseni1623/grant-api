@@ -3,6 +3,29 @@ const User = require('../models/User');
 const env = require('../../env-config');
 const config = require('../../src/config/config');
 
+// Use a consistent approach to get JWT_SECRET - prefer env-config but fall back to process.env
+const getJwtSecret = () => {
+  // First try env-config
+  if (env && env.JWT_SECRET) {
+    return env.JWT_SECRET;
+  }
+  
+  // Then try process.env
+  if (process.env.JWT_SECRET) {
+    return process.env.JWT_SECRET;
+  }
+  
+  // If in development, provide a warning but allow a fallback
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn('⚠️ JWT_SECRET not found in environment, using fallback value');
+    return 'fallback_jwt_secret_for_development_only';
+  }
+  
+  // In production, this is a critical error
+  console.error('❌ CRITICAL ERROR: JWT_SECRET environment variable is missing in production!');
+  throw new Error('JWT_SECRET environment variable is required in production');
+};
+
 /**
  * Middleware to protect routes by verifying JWT token
  * @param {Object} req - Express request object
@@ -17,8 +40,8 @@ exports.protect = async (req, res, next) => {
       // Extract token from Authorization header
       token = req.headers.authorization.split(' ')[1];
       
-      // Verify token using JWT_SECRET from env config
-      const decoded = jwt.verify(token, env.JWT_SECRET);
+      // Verify token using consistent JWT_SECRET 
+      const decoded = jwt.verify(token, getJwtSecret());
       
       // Find user by ID from token and exclude password field
       const user = await User.findById(decoded.userId).select('-password');
@@ -94,8 +117,8 @@ exports.verifyAdminToken = async (req, res, next) => {
       // Extract token from Authorization header
       token = req.headers.authorization.split(' ')[1];
       
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      // Verify token using consistent approach
+      const decoded = jwt.verify(token, getJwtSecret());
       
       // Check if user has admin role
       if (decoded.role !== 'ADMIN') {
@@ -149,8 +172,8 @@ exports.authMiddleware = async (req, res, next) => {
       // Extract token from Authorization header
       token = req.headers.authorization.split(' ')[1];
       
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      // Verify token using consistent approach
+      const decoded = jwt.verify(token, getJwtSecret());
       
       // Find user by ID and exclude password
       const user = await User.findById(decoded.userId).select('-password');
