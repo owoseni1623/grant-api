@@ -14,8 +14,8 @@ const { protect, isAdmin } = require('../middleware/authMiddleware');
 
 // Public routes
 router.post('/register', registerUser);
-router.post('/login', loginUser);
-router.post('/admin/login', adminLogin);
+router.post('/login', loginUser);         // This will handle /api/auth/login
+router.post('/admin/login', adminLogin);  // This will handle /api/auth/admin/login
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 
