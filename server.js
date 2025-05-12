@@ -57,70 +57,42 @@ if (!fs.existsSync(uploadDir)) {
 // Serve static files for uploaded documents
 app.use('/uploads', express.static(uploadDir));
 
-// Environment Configuration
-const ENV = {
-  PORT: process.env.PORT || 3000,
-  NODE_ENV: process.env.NODE_ENV || 'development',
-  MONGODB_URI: process.env.MONGODB_URI || '',
-  JWT_SECRET: process.env.JWT_SECRET || '',
-  REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET || '',
-};
-
-// Validate and generate secrets if needed
-const generateSecureSecret = () => {
-  return crypto.randomBytes(64).toString('hex');
-};
-
-// Advanced Environment Validation
-const validateEnvironment = () => {
-  const errors = [];
-
-  // Check critical variables for production
-  if (ENV.NODE_ENV === 'production') {
-    // Validate MongoDB URI
-    if (!ENV.MONGODB_URI) {
-      errors.push('MONGODB_URI is required in production');
+// Advanced Environment Configuration
+const validateEnvironmentVariables = () => {
+  const missingCriticalVars = [];
+  const criticalVars = ['JWT_SECRET', 'MONGODB_URI'];
+  
+  criticalVars.forEach(varName => {
+    if (!process.env[varName]) {
+      missingCriticalVars.push(varName);
     }
+  });
 
-    // Generate JWT Secret if not provided
-    if (!ENV.JWT_SECRET) {
-      console.warn('⚠️ JWT_SECRET not provided. Generating a temporary secret for production is NOT recommended!');
-      ENV.JWT_SECRET = generateSecureSecret();
-      console.warn('🚨 IMPORTANT: Set a permanent JWT_SECRET in your production environment variables!');
-    }
-
-    // Generate Refresh Token Secret if not provided
-    if (!ENV.REFRESH_TOKEN_SECRET) {
-      console.warn('⚠️ REFRESH_TOKEN_SECRET not provided. Generating a temporary secret.');
-      ENV.REFRESH_TOKEN_SECRET = generateSecureSecret();
-      console.warn('🚨 IMPORTANT: Set a permanent REFRESH_TOKEN_SECRET in your production environment variables!');
-    }
-  } else {
-    // Development environment fallbacks
-    ENV.JWT_SECRET = ENV.JWT_SECRET || generateSecureSecret();
-    ENV.REFRESH_TOKEN_SECRET = ENV.REFRESH_TOKEN_SECRET || generateSecureSecret();
-    
-    // Warn about using default MongoDB URI in development
-    if (!ENV.MONGODB_URI) {
-      console.warn('⚠️ MONGODB_URI not set. Using a default development URI is not recommended.');
-    }
+  // If missing critical vars in production, throw error
+  if (process.env.NODE_ENV === 'production' && missingCriticalVars.length > 0) {
+    throw new Error(`Missing critical environment variables in production: ${missingCriticalVars.join(', ')}`);
   }
 
-  // Throw error if in strict production mode and critical errors exist
-  if (ENV.NODE_ENV === 'production' && errors.length > 0) {
-    throw new Error(`Configuration Errors: ${errors.join(', ')}`);
-  }
+  // Generate secrets if not provided (mainly for development)
+  const generateSecureSecret = () => crypto.randomBytes(64).toString('hex');
 
-  return ENV;
+  return {
+    PORT: process.env.PORT || 3000,
+    NODE_ENV: process.env.NODE_ENV || 'development',
+    MONGODB_URI: process.env.MONGODB_URI || '',
+    JWT_SECRET: process.env.JWT_SECRET || generateSecureSecret(),
+    REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET || generateSecureSecret(),
+    FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173'
+  };
 };
 
-// Validate Environment
-try {
-  validateEnvironment();
-} catch (error) {
-  console.error('🚨 Environment Validation Failed:', error.message);
-  process.exit(1);
-}
+// Validate and extract environment configuration
+const ENV = validateEnvironmentVariables();
+
+// Helpful console logs for debugging
+console.log(`🚀 Server starting in ${ENV.NODE_ENV} mode`);
+console.log(`📦 MongoDB URI: ${ENV.MONGODB_URI ? 'Configured' : 'Not Configured'}`);
+console.log(`🔐 JWT Secret: ${ENV.JWT_SECRET ? 'Generated' : 'Missing'}`);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
