@@ -23,7 +23,7 @@ router.post('/reset-password', resetPassword);
 router.get('/profile', protect, getUserProfile);
 
 // Admin routes
-router.post('/admin/create', createAdminUser); // Protected by admin secret
+router.post('/admin/create', protect, isAdmin, createAdminUser);
 router.get('/admin/users', protect, isAdmin, getAllUsers);
 
 module.exports = router;

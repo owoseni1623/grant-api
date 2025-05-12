@@ -68,16 +68,22 @@ app.get('/health', (req, res) => {
 
 // Validate critical environment variables
 const validateEnvVariables = () => {
-  const requiredVars = ['JWT_SECRET', 'MONGODB_URI'];
-  const missingVars = requiredVars.filter(varName => !process.env[varName]);
+  const criticalVars = ['JWT_SECRET', 'MONGODB_URI'];
+  const missingCriticalVars = criticalVars.filter(varName => !process.env[varName]);
   
-  if (missingVars.length > 0) {
-    console.error('❌ CRITICAL ERROR: Missing environment variables:', missingVars);
+  if (missingCriticalVars.length > 0) {
+    console.error('❌ CRITICAL ERROR: Missing critical environment variables:', missingCriticalVars);
     
     // In production, throw an error to prevent startup
     if (process.env.NODE_ENV === 'production') {
-      throw new Error(`Missing critical environment variables: ${missingVars.join(', ')}`);
+      throw new Error(`Missing critical environment variables: ${missingCriticalVars.join(', ')}`);
     }
+  }
+
+  // Check ADMIN_SECRET with a warning
+  if (!process.env.ADMIN_SECRET) {
+    console.warn('⚠️ ADMIN_SECRET is not set. Using default development secret.');
+    console.warn('   It is STRONGLY recommended to set a custom ADMIN_SECRET in production.');
   }
 };
 

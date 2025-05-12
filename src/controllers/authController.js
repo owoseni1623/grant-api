@@ -1,7 +1,6 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
 const config = require('../../src/config/config');
 
 // Import environment configuration
@@ -297,7 +296,9 @@ exports.forgotPassword = async (req, res) => {
 
     // NOTE: In a real app, you would send an email with the reset link here
     res.json({ 
-      message: 'Password reset token has been generated' 
+      message: 'Password reset token has been generated',
+      // In a real app, you would not send the token back to the client
+      resetToken 
     });
   } catch (error) {
     console.error('Forgot Password Error:', error);
@@ -363,7 +364,6 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
-// Create admin user (for initial setup or testing)
 exports.createAdminUser = async (req, res) => {
   const {
     firstName,
@@ -460,4 +460,5 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-module.exports.generateToken = generateToken;
+// Export the generateToken function 
+exports.generateToken = generateToken;
