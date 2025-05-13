@@ -82,7 +82,7 @@ const validateEnvironmentVariables = () => {
     MONGODB_URI: process.env.MONGODB_URI || '',
     JWT_SECRET: process.env.JWT_SECRET || generateSecureSecret(),
     REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET || generateSecureSecret(),
-    FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173'
+    FRONTEND_URL: process.env.FRONTEND_URL || 'https://grant-pi.vercel.app'
   };
 };
 

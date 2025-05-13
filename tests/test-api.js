@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // Change this to your actual backend URL
-const API_URL = 'https://grant-api.onrender.com';
+const API_URL = 'https://grant-pi.vercel.app';
 
 async function testAPIEndpoints() {
   console.log('Testing API endpoints...');
