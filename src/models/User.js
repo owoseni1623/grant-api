@@ -70,6 +70,31 @@ const UserSchema = new mongoose.Schema({
       message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
     }
   },
+  // New fields for profile page
+  avatar: {
+    type: String,
+    default: null
+  },
+  bio: {
+    type: String,
+    trim: true,
+    maxlength: [1000, 'Bio cannot exceed 1000 characters']
+  },
+  organization: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Organization name cannot exceed 100 characters']
+  },
+  position: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Position/title cannot exceed 100 characters']
+  },
+  memberSince: {
+    type: Date,
+    default: Date.now
+  },
+  // Original fields
   resetPasswordToken: {
     type: String
   },
@@ -84,6 +109,11 @@ const UserSchema = new mongoose.Schema({
     type: String,
     enum: ['USER', 'ADMIN'],
     default: 'USER'
+  },
+  accountStatus: {
+    type: String,
+    enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED'],
+    default: 'ACTIVE'
   }
 }, {
   timestamps: true
@@ -93,11 +123,11 @@ const UserSchema = new mongoose.Schema({
 UserSchema.pre('save', async function(next) {
   // Only hash the password if it has been modified (or is new)
   if (!this.isModified('password')) return next();
-  
+ 
   try {
     // Generate a salt
     const salt = await bcrypt.genSalt(12);
-    
+   
     // Hash the password along with the salt
     this.password = await bcrypt.hash(this.password, salt);
     next();
@@ -112,5 +142,4 @@ UserSchema.methods.comparePassword = async function(candidatePassword) {
 };
 
 const User = mongoose.model('User', UserSchema);
-
 module.exports = User;

@@ -6,6 +6,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const connectDB = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes');
+const userRoutes = require('./src/routes/userRoutes'); // New user/profile routes
 const grantRoutes = require('./src/routes/grantRoutes');
 const applicationRoutes = require('./src/routes/applicationRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
@@ -54,7 +55,13 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Serve static files for uploaded documents
+// Create avatars directory inside uploads
+const avatarsDir = path.join(uploadDir, 'avatars');
+if (!fs.existsSync(avatarsDir)) {
+  fs.mkdirSync(avatarsDir, { recursive: true });
+}
+
+// Serve static files for uploaded documents and avatars
 app.use('/uploads', express.static(uploadDir));
 
 // Advanced Environment Configuration
@@ -82,7 +89,8 @@ const validateEnvironmentVariables = () => {
     MONGODB_URI: process.env.MONGODB_URI || '',
     JWT_SECRET: process.env.JWT_SECRET || generateSecureSecret(),
     REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET || generateSecureSecret(),
-    FRONTEND_URL: process.env.FRONTEND_URL || 'https://grant-pi.vercel.app'
+    FRONTEND_URL: process.env.FRONTEND_URL || 'https://grant-pi.vercel.app',
+    API_URL: process.env.API_URL || null // For generating full URLs to resources
   };
 };
 
@@ -109,6 +117,7 @@ connectDB();
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes); // New user/profile routes
 app.use('/api/grants', grantRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/admin', adminRoutes);
