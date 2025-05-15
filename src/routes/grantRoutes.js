@@ -1,201 +1,100 @@
 const express = require('express');
+const { check } = require('express-validator');
+const { 
+  // Grant Application endpoints
+  submitGrantApplication,
+  getGrantApplicationStatus,
+  getGrantApplicationDetails,
+  getUserApplications,
+  updateApplicationStatus,
+  
+  // Grant Management endpoints
+  getAllGrants,
+  getGrantsByCategory,
+  searchGrants,
+  getGrantById,
+  createGrant,
+  updateGrant,
+  deleteGrant
+} = require('../controllers/grantApplicationController');
+
+// Auth middleware import
+const { isAuth, isAdmin } = require('../middleware/authMiddleware');
+
 const router = express.Router();
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 
-// Ensure uploads directory exists
-const uploadDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)){
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+/**
+ * Grant Application Routes
+ */
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: function(req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function(req, file, cb) {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  }
-});
+// Submit a new grant application
+router.post(
+  '/applications',
+  [
+    // Input validation using express-validator
+    check('firstName').trim().notEmpty().withMessage('First name is required'),
+    check('lastName').trim().notEmpty().withMessage('Last name is required'),
+    check('email').isEmail().withMessage('Valid email is required'),
+    check('phoneNumber').matches(/^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/).withMessage('Valid phone number is required'),
+    check('ssn').matches(/^\d{3}-?\d{2}-?\d{4}$/).withMessage('Valid SSN is required'),
+    check('dateOfBirth').isDate().withMessage('Valid date of birth is required'),
+    check('streetAddress').trim().notEmpty().withMessage('Street address is required'),
+    check('city').trim().notEmpty().withMessage('City is required'),
+    check('state').trim().notEmpty().withMessage('State is required'),
+    check('zip').matches(/^\d{5}(-\d{4})?$/).withMessage('Valid ZIP code is required'),
+    check('fundingType').trim().notEmpty().withMessage('Funding type is required'),
+    check('fundingAmount').isFloat({ min: 75000, max: 750000 }).withMessage('Funding amount must be between $75,000 and $750,000'),
+    check('fundingPurpose').trim().notEmpty().withMessage('Funding purpose is required'),
+    check('termsAccepted').isBoolean().toBoolean().equals('true').withMessage('Terms must be accepted')
+  ],
+  submitGrantApplication
+);
 
-// File filter to only allow images and PDFs
-const fileFilter = (req, file, cb) => {
-  const allowedFileTypes = ['image/jpeg', 'image/png', 'application/pdf'];
-  if (allowedFileTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Invalid file type. Only JPG, PNG, and PDF files are allowed.'));
-  }
-};
+// Get the status of an application
+router.get('/applications/:applicationId/status', getGrantApplicationStatus);
 
-const upload = multer({ 
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB
-  }
-});
+// Get detailed information about an application (authenticated)
+router.get('/applications/:applicationId', isAuth, getGrantApplicationDetails);
 
-// Upload fields for ID card documents
-const uploadFields = upload.fields([
-  { name: 'idCardFront', maxCount: 1 },
-  { name: 'idCardBack', maxCount: 1 }
-]);
+// Get all applications for a user by email
+router.get('/applications', isAuth, getUserApplications);
 
-// Import the controller directly from paste.txt
-// This avoids any import path issues
-const grantApplicationController = {
-  submitGrantApplication: (req, res) => {
-    uploadFields(req, res, async (uploadError) => {
-      // Handle multer upload errors
-      if (uploadError) {
-        return res.status(400).json({ 
-          message: 'File upload error',
-          error: uploadError.message 
-        });
-      }
+// Update application status (admin only)
+router.patch('/applications/:applicationId/status', isAdmin, updateApplicationStatus);
 
-      try {
-        // Basic validation for demonstration
-        if (!req.body.firstName || !req.body.email) {
-          return res.status(400).json({
-            message: 'Validation failed',
-            errors: { 
-              firstName: !req.body.firstName ? 'First name is required' : undefined,
-              email: !req.body.email ? 'Email is required' : undefined
-            }
-          });
-        }
+/**
+ * Grant Listing Routes
+ */
 
-        // Mock successful response
-        res.status(201).json({
-          message: 'Grant application submitted successfully',
-          applicationId: 'temp-' + Date.now()
-        });
-      } catch (error) {
-        console.error('Submission Error:', error);
-        res.status(500).json({ 
-          message: 'Internal server error', 
-          error: error.message 
-        });
-      }
-    });
-  },
+// Get all grants with pagination
+router.get('/grants', getAllGrants);
 
-  getGrantApplicationStatus: async (req, res) => {
-    try {
-      const { applicationId } = req.params;
-      
-      // Mock response
-      res.status(200).json({
-        applicationId: applicationId,
-        status: 'PENDING',
-        fundingType: 'Business Grant',
-        submissionDate: new Date()
-      });
-    } catch (error) {
-      res.status(500).json({ 
-        message: 'Error retrieving application status', 
-        error: error.message 
-      });
-    }
-  },
+// Get grants by category
+router.get('/grants/category/:category', getGrantsByCategory);
 
-  getUserApplications: async (req, res) => {
-    try {
-      const { email } = req.query;
-      
-      if (!email) {
-        return res.status(400).json({ message: 'Email is required' });
-      }
+// Search grants
+router.get('/grants/search', searchGrants);
 
-      // Mock response
-      res.status(200).json([{
-        _id: 'mock-id-1',
-        status: 'PENDING',
-        fundingInfo: { fundingType: 'Business' },
-        createdAt: new Date()
-      }]);
-    } catch (error) {
-      res.status(500).json({ 
-        message: 'Error retrieving user applications', 
-        error: error.message 
-      });
-    }
-  },
+// Get specific grant by ID
+router.get('/grants/:grantId', getGrantById);
 
-  getAllGrants: async (req, res) => {
-    try {
-      // Mock response
-      res.status(200).json([{
-        title: 'Small Business Grant',
-        description: 'Support for small businesses',
-        category: 'Business',
-        amount: 5000,
-        deadline: new Date(2025, 8, 1),
-        status: 'ACTIVE'
-      }]);
-    } catch (error) {
-      res.status(500).json({ 
-        message: 'Error fetching grants', 
-        error: error.message 
-      });
-    }
-  },
+// Create new grant (admin only)
+router.post(
+  '/grants',
+  isAdmin,
+  [
+    check('title').trim().notEmpty().withMessage('Title is required'),
+    check('description').trim().notEmpty().withMessage('Description is required'),
+    check('category').trim().notEmpty().withMessage('Category is required'),
+    check('amount').isFloat({ min: 1000 }).withMessage('Amount must be at least $1,000')
+  ],
+  createGrant
+);
 
-  getGrantsByCategory: async (req, res) => {
-    try {
-      const { category } = req.params;
-      
-      // Mock response
-      res.status(200).json([{
-        title: `${category} Grant`,
-        description: `Support for ${category}`,
-        category: category,
-        amount: 5000,
-        deadline: new Date(2025, 8, 1),
-        status: 'ACTIVE'
-      }]);
-    } catch (error) {
-      res.status(500).json({ 
-        message: 'Error fetching grants by category', 
-        error: error.message 
-      });
-    }
-  },
+// Update existing grant (admin only)
+router.put('/grants/:grantId', isAdmin, updateGrant);
 
-  searchGrants: async (req, res) => {
-    try {
-      const { q } = req.query;
-      
-      // Mock response
-      res.status(200).json([{
-        title: `Grant matching "${q}"`,
-        description: 'Search result',
-        category: 'Various',
-        amount: 5000,
-        deadline: new Date(2025, 8, 1),
-        status: 'ACTIVE'
-      }]);
-    } catch (error) {
-      res.status(500).json({ 
-        message: 'Error searching grants', 
-        error: error.message 
-      });
-    }
-  }
-};
-
-// Grant application routes
-router.post('/submit', grantApplicationController.submitGrantApplication);
-router.get('/status/:applicationId', grantApplicationController.getGrantApplicationStatus);
-router.get('/user-applications', grantApplicationController.getUserApplications);
-
-// Grant listing routes
-router.get('/all', grantApplicationController.getAllGrants);
-router.get('/category/:category', grantApplicationController.getGrantsByCategory);
-router.get('/search', grantApplicationController.searchGrants);
+// Delete grant (admin only)
+router.delete('/grants/:grantId', isAdmin, deleteGrant);
 
 module.exports = router;

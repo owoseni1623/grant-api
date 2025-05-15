@@ -115,6 +115,61 @@ exports.authorizeRoles = (allowedRoles) => {
 };
 
 /**
+ * Authentication middleware
+ * Verifies JWT token and attaches user to request object
+ */
+exports.isAuth = async (req, res, next) => {
+  try {
+    // Get token from authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Find user
+    const user = await User.findById(decoded.userId).select('-password');
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+    
+    // Attach user to request
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token expired' });
+    }
+    
+    res.status(500).json({ message: 'Authentication error' });
+  }
+};
+
+/**
+ * Admin authorization middleware
+ * Verifies user has admin role
+ * Must be used after isAuth middleware
+ */
+exports.isAdmin = (req, res, next) => {
+  // Check if user exists and has admin role
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access required' });
+  }
+  
+  next();
+};
+
+/**
  * Admin-only access middleware
  */
 exports.adminOnly = exports.authorizeRoles(['ADMIN']);
