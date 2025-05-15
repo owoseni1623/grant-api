@@ -19,6 +19,31 @@ const generateToken = (userId, role) => {
   });
 };
 
+/**
+ * Verify if the current token is valid
+ * @param {Object} req - Express request object (with user attached by authenticateToken middleware)
+ * @param {Object} res - Express response object
+ */
+exports.verifyToken = async (req, res) => {
+  // If middleware successfully attached user to request, token is valid
+  try {
+    res.status(200).json({
+      valid: true,
+      user: {
+        userId: req.user.userId,
+        role: req.user.role,
+        email: req.user.email
+      }
+    });
+  } catch (error) {
+    console.error('Token Verification Error:', error);
+    res.status(401).json({ 
+      valid: false,
+      message: 'Invalid token' 
+    });
+  }
+};
+
 exports.registerUser = async (req, res) => {
   const {
     firstName,

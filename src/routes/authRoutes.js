@@ -8,7 +8,8 @@ const {
   forgotPassword,
   resetPassword,
   createAdminUser,
-  getAllUsers
+  getAllUsers,
+  verifyToken // Add this new import
 } = require('../controllers/authController');
 
 // Import the middleware from the updated authMiddleware file
@@ -27,6 +28,9 @@ router.post('/login', loginUser);
 router.post('/admin/login', adminLogin);  
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
+
+// Add the new verify-token endpoint - protected by authenticateToken
+router.get('/verify-token', authenticateToken, verifyToken);
 
 // Protected routes - you can use either authenticateToken or protect (they're aliases)
 router.get('/profile', authenticateToken, getUserProfile);
