@@ -8,7 +8,7 @@ const connectDB = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes'); // New user/profile routes
 const grantRoutes = require('./src/routes/grantRoutes');
-// const applicationRoutes = require('./src/routes/applicationRoutes');
+const applicationRoutes = require('./src/routes/applicationRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -119,7 +119,7 @@ connectDB();
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes); // New user/profile routes
 app.use('/api/grants', grantRoutes);
-// app.use('/api/applications', applicationRoutes);
+app.use('/api/applications', applicationRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Simple test route
