@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { protect, isAdmin } = require('../middleware/authMiddleware');
+const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
-// Import admin controllers (to be implemented)
+// Import admin controllers
 const {
   getAllApplications,
   getApplicationById,
@@ -10,14 +10,14 @@ const {
   getDashboardStats
 } = require('../controllers/adminController');
 
-// All routes here require authentication and admin privileges
-router.use(protect);
-router.use(isAdmin);
+// All routes below require authentication and admin role
+router.use(authenticateToken);
+router.use(authorizeRoles(['ADMIN']));
 
-// Dashboard stats
+// Dashboard stats route
 router.get('/dashboard', getDashboardStats);
 
-// Application management
+// Application management routes
 router.get('/applications', getAllApplications);
 router.get('/applications/:id', getApplicationById);
 router.patch('/applications/:id/status', updateApplicationStatus);
