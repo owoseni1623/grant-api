@@ -1,6 +1,8 @@
 const Application = require('../models/Application');
 const { GrantApplication, Grant } = require('../models/GrantApplication');
 const User = require('../models/User');
+const PDFDocument = require('pdfkit');
+const { format } = require('date-fns');
 
 // Get dashboard statistics
 exports.getDashboardStats = async (req, res) => {
@@ -329,6 +331,115 @@ exports.updateApplicationStatus = async (req, res) => {
     console.error('Update Status Error:', error);
     res.status(500).json({
       message: 'Error updating application status',
+      error: error.message
+    });
+  }
+};
+
+// Generate PDF for an application
+exports.generateApplicationPDF = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Try to find in standard applications first
+    let application = await Application.findById(id)
+      .populate('userId', 'firstName lastName email')
+      .lean();
+    
+    // If not found, try to find in grant applications
+    if (!application) {
+      application = await GrantApplication.findById(id).lean();
+      
+      if (!application) {
+        return res.status(404).json({ message: 'Application not found' });
+      }
+      
+      // Mark as grant application
+      application.source = 'GRANT';
+    } else {
+      // Mark as standard application
+      application.source = 'STANDARD';
+    }
+    
+    // Create PDF document
+    const doc = new PDFDocument();
+    
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=application-${id}.pdf`);
+    
+    // Pipe PDF to response
+    doc.pipe(res);
+    
+    // Add content to PDF
+    doc.fontSize(25).text('Application Details', { align: 'center' });
+    doc.moveDown();
+    
+    // Add application ID and date
+    doc.fontSize(12).text(`Application ID: ${application._id}`);
+    doc.text(`Date Submitted: ${format(new Date(application.createdAt), 'PPP')}`);
+    doc.text(`Status: ${application.status}`);
+    doc.text(`Application Type: ${application.source}`);
+    doc.moveDown();
+    
+    // Add personal information section
+    doc.fontSize(18).text('Personal Information');
+    doc.moveDown(0.5);
+    
+    // Handle different data structures between application types
+    const personal = application.personalInfo || {};
+    doc.fontSize(12).text(`Name: ${personal.firstName || ''} ${personal.lastName || ''}`);
+    doc.text(`Email: ${personal.email || ''}`);
+    doc.text(`Phone: ${personal.phone || ''}`);
+    doc.moveDown();
+    
+    // Add address information
+    const address = application.addressInfo || {};
+    doc.fontSize(18).text('Address');
+    doc.moveDown(0.5);
+    doc.fontSize(12).text(`Street: ${address.street || ''}`);
+    doc.text(`City: ${address.city || ''}`);
+    doc.text(`State: ${address.state || ''}`);
+    doc.text(`Zip: ${address.zip || ''}`);
+    doc.text(`Country: ${address.country || ''}`);
+    doc.moveDown();
+    
+    // Add funding information
+    const funding = application.fundingInfo || {};
+    doc.fontSize(18).text('Funding Details');
+    doc.moveDown(0.5);
+    doc.fontSize(12).text(`Funding Type: ${funding.fundingType || ''}`);
+    doc.text(`Funding Amount: $${funding.fundingAmount?.toLocaleString() || '0'}`);
+    doc.text(`Funding Purpose: ${funding.fundingPurpose || ''}`);
+    doc.moveDown();
+    
+    // Add status history if available
+    if (application.statusHistory && application.statusHistory.length > 0) {
+      doc.fontSize(18).text('Status History');
+      doc.moveDown(0.5);
+      
+      application.statusHistory.forEach((history, index) => {
+        doc.fontSize(12).text(`${index + 1}. Status: ${history.status}`);
+        doc.text(`   Changed on: ${format(new Date(history.changedAt), 'PPP')}`);
+      });
+      doc.moveDown();
+    }
+    
+    // Add notes or additional information if available
+    if (application.notes) {
+      doc.fontSize(18).text('Notes');
+      doc.moveDown(0.5);
+      doc.fontSize(12).text(application.notes);
+      doc.moveDown();
+    }
+    
+    // Finalize PDF
+    doc.end();
+    
+  } catch (error) {
+    console.error('Generate PDF Error:', error);
+    res.status(500).json({
+      message: 'Error generating PDF',
       error: error.message
     });
   }

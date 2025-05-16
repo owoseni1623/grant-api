@@ -7,7 +7,8 @@ const {
   getAllApplications,
   getApplicationById,
   updateApplicationStatus,
-  getDashboardStats
+  getDashboardStats,
+  generateApplicationPDF
 } = require('../controllers/adminController');
 
 // All routes below require authentication and admin role
@@ -21,5 +22,6 @@ router.get('/dashboard', getDashboardStats);
 router.get('/applications', getAllApplications);
 router.get('/applications/:id', getApplicationById);
 router.patch('/applications/:id/status', updateApplicationStatus);
+router.get('/applications/:id/export-pdf', generateApplicationPDF);
 
 module.exports = router;
