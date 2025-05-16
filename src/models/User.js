@@ -119,6 +119,31 @@ const UserSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Virtual for avatar URL to ensure consistent URLs across sessions
+UserSchema.virtual('avatarUrl').get(function() {
+  if (this.avatar) {
+    if (this.avatar.startsWith('http')) {
+      return this.avatar;
+    }
+    // Use the specific backend URL for your application
+    const baseUrl = process.env.API_URL || 'https://grant-api.onrender.com';
+    return `${baseUrl}/${this.avatar.replace(/\\/g, '/')}`;
+  }
+  return null;
+});
+
+// Make sure virtuals are included in JSON conversion
+UserSchema.set('toJSON', {
+  virtuals: true,
+  transform: (doc, ret) => {
+    ret.id = ret._id;
+    delete ret._id;
+    delete ret.__v;
+    delete ret.password;
+    return ret;
+  }
+});
+
 // Hash password before saving
 UserSchema.pre('save', async function(next) {
   // Only hash the password if it has been modified (or is new)

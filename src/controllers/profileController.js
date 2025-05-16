@@ -66,21 +66,15 @@ const handleMulterError = (error, req, res, next) => {
 // Get complete user profile
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).select('-password -resetPasswordToken -resetPasswordExpires');
+    const user = await User.findById(req.user.userId)
+      .select('-password -resetPasswordToken -resetPasswordExpires');
     
     if (!user) {
       return res.status(404).json({ message: 'User profile not found' });
     }
-
-    // If avatar path exists, convert to full URL
-    if (user.avatar) {
-      // Check if the avatar is already a full URL
-      if (!user.avatar.startsWith('http')) {
-        // Base URL from environment or default
-        const baseUrl = process.env.API_URL || `${req.protocol}://${req.get('host')}`;
-        user.avatar = `${baseUrl}/${user.avatar.replace(/\\/g, '/')}`;
-      }
-    }
+    
+    // The avatarUrl virtual property will now handle the URL conversion
+    // and it will be included in the response due to the toJSON configuration
     
     res.json(user);
   } catch (error) {
@@ -91,6 +85,7 @@ exports.getProfile = async (req, res) => {
     });
   }
 };
+
 
 // Update user profile
 exports.updateProfile = async (req, res) => {
@@ -160,21 +155,8 @@ exports.updateProfile = async (req, res) => {
       }
     }
     
-    // Return updated user info
-    res.json({
-      _id: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      primaryPhone: user.primaryPhone,
-      mobilePhone: user.mobilePhone,
-      bio: user.bio,
-      organization: user.organization,
-      position: user.position,
-      avatar: user.avatar,
-      role: user.role,
-      updatedAt: user.updatedAt
-    });
+    // Return updated user info using the model's toJSON method
+    res.json(user.toJSON());
   } catch (error) {
     console.error('Profile update error:', error);
     
