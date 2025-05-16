@@ -1,8 +1,3 @@
-/**
- * Environment Validator Script
- * Run this script to check environment variables before starting your application
- * Usage: node validate-env.js
- */
 const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');

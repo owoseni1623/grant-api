@@ -20,8 +20,8 @@ const app = express();
 // Comprehensive CORS configuration
 const corsOptions = {
   origin: [
-    'https://grant-pi.vercel.app',
-    'https://grant-pi.vercel.app/', // with trailing slash
+    'https://grant-app-five.vercel.app/',
+    'https://grant-app-five.vercel.app', // with trailing slash
     'http://localhost:5173',        // local development
     'http://localhost:3000',        // local development
     'http://127.0.0.1:3000'         // local development
@@ -89,7 +89,7 @@ const validateEnvironmentVariables = () => {
     MONGODB_URI: process.env.MONGODB_URI || '',
     JWT_SECRET: process.env.JWT_SECRET || generateSecureSecret(),
     REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET || generateSecureSecret(),
-    FRONTEND_URL: process.env.FRONTEND_URL || 'https://grant-pi.vercel.app',
+    FRONTEND_URL: process.env.FRONTEND_URL || 'https://grant-app-five.vercel.app/',
     API_URL: process.env.API_URL || null // For generating full URLs to resources
   };
 };

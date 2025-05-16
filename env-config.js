@@ -1,7 +1,3 @@
-/**
- * Environment Configuration Handler
- * Handles environment variables from both .env files and system environment
- */
 const path = require('path');
 const dotenv = require('dotenv');
 const fs = require('fs');

@@ -1,4 +1,3 @@
-// utils/validators.js
 const validator = require('validator');
 
 const validateRegistrationData = (data) => {

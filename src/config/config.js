@@ -32,7 +32,7 @@ const config = {
   },
   
   // Frontend URL for CORS
-  frontendUrl: process.env.FRONTEND_URL || 'https://grant-pi.vercel.app',
+  frontendUrl: process.env.FRONTEND_URL || 'https://grant-app-five.vercel.app/',
   
   // Logging
   logLevel: process.env.LOG_LEVEL || 'info',

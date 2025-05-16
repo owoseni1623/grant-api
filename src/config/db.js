@@ -16,12 +16,12 @@ const connectDB = async () => {
 
     // MongoDB connection options - removed deprecated options
     const options = {
-      serverSelectionTimeoutMS: 30000,  // Timeout after 30 seconds
-      socketTimeoutMS: 45000,           // Close sockets after 45 seconds
-      connectTimeoutMS: 30000,          // Return error after 30 seconds
-      maxPoolSize: 10,                  // Maintain up to 10 socket connections
-      minPoolSize: 5,                   // Maintain at least 5 socket connections
-      family: 4                         // Use IPv4, skip trying IPv6
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 30000,
+      maxPoolSize: 10,
+      minPoolSize: 5,
+      family: 4
     };
 
     // Attempt to connect to MongoDB

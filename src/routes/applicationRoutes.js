@@ -34,7 +34,7 @@ router.get('/:id',
   asyncHandler(applicationController.getApplicationById)
 );
 
-// Admin routes - protected by both auth and admin middleware
+
 // Get all applications (admin only)
 router.get('/', 
   authMiddleware, 

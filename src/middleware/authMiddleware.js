@@ -2,10 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const env = require('../../env-config');
 
-/**
- * Get JWT secret consistently across the application
- * Uses the same logic as in authController.js
- */
+
 const getJwtSecret = () => {
   // First try env-config
   if (env && env.JWT_SECRET) {
