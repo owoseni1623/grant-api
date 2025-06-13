@@ -89,7 +89,6 @@ exports.getProfile = async (req, res) => {
 
 // Update user profile
 exports.updateProfile = async (req, res) => {
-  // Multer middleware is called before this controller function
   try {
     const userId = req.user.userId;
     
@@ -111,52 +110,40 @@ exports.updateProfile = async (req, res) => {
     } = req.body;
     
     // Update fields if provided
-    if (firstName) user.firstName = firstName;
-    if (lastName) user.lastName = lastName;
-    if (primaryPhone) user.primaryPhone = primaryPhone;
+    if (firstName !== undefined) user.firstName = firstName;
+    if (lastName !== undefined) user.lastName = lastName;
+    if (primaryPhone !== undefined) user.primaryPhone = primaryPhone;
     if (mobilePhone !== undefined) user.mobilePhone = mobilePhone;
     if (bio !== undefined) user.bio = bio;
     if (organization !== undefined) user.organization = organization;
     if (position !== undefined) user.position = position;
     
-    // Handle avatar upload from multer
+    // Handle avatar upload from multer (only if file was uploaded)
     if (req.file) {
       // Delete previous avatar file if exists
       if (user.avatar) {
         const previousAvatarPath = path.join(__dirname, '../../', user.avatar);
         if (fs.existsSync(previousAvatarPath)) {
-          fs.unlinkSync(previousAvatarPath);
+          try {
+            fs.unlinkSync(previousAvatarPath);
+          } catch (deleteError) {
+            console.warn('Could not delete previous avatar:', deleteError.message);
+          }
         }
       }
       
       // Set new avatar path (relative to the project root)
       user.avatar = path.relative(path.join(__dirname, '../../'), req.file.path);
-    } else if (req.body.avatar === '') {
-      // If empty string provided, remove avatar
-      if (user.avatar) {
-        const avatarPath = path.join(__dirname, '../../', user.avatar);
-        if (fs.existsSync(avatarPath)) {
-          fs.unlinkSync(avatarPath);
-        }
-      }
-      user.avatar = null;
     }
     
     // Save updated user
     await user.save();
     
-    // If avatar exists, convert to full URL for response
-    if (user.avatar) {
-      // Check if the avatar is already a full URL
-      if (!user.avatar.startsWith('http')) {
-        // Base URL from environment or default
-        const baseUrl = process.env.API_URL || `${req.protocol}://${req.get('host')}`;
-        user.avatar = `${baseUrl}/${user.avatar.replace(/\\/g, '/')}`;
-      }
-    }
-    
     // Return updated user info using the model's toJSON method
-    res.json(user.toJSON());
+    // This will include the avatarUrl virtual property
+    const userResponse = user.toJSON();
+    
+    res.json(userResponse);
   } catch (error) {
     console.error('Profile update error:', error);
     
@@ -170,6 +157,14 @@ exports.updateProfile = async (req, res) => {
       return res.status(400).json({
         message: 'Validation Error',
         errors
+      });
+    }
+    
+    // Handle multer errors that might not be caught by the middleware
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        message: 'File too large',
+        details: 'Maximum file size is 5MB'
       });
     }
     
