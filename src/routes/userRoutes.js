@@ -24,24 +24,25 @@ router.get('/profile', getProfile);
  * @desc    Update user profile
  * @access  Private
  */
-// Modified to handle both JSON and multipart requests
 router.put('/profile', (req, res, next) => {
-  // Check if the request is multipart (has file upload)
   const contentType = req.get('Content-Type');
   
-  if (contentType && contentType.includes('multipart/form-data')) {
-    // Apply multer middleware for file uploads
+  // Check if this is a multipart request (file upload)
+  if (contentType && contentType.startsWith('multipart/form-data')) {
+    // Use multer for file uploads
     uploadAvatar(req, res, (err) => {
       if (err) {
+        console.error('Multer error:', err);
         return handleMulterError(err, req, res, next);
       }
-      next();
+      // Continue to updateProfile controller
+      updateProfile(req, res);
     });
   } else {
-    // Skip multer for JSON requests
-    next();
+    // Handle JSON requests directly
+    updateProfile(req, res);
   }
-}, updateProfile);
+});
 
 /**
  * @route   PUT /api/users/change-password
