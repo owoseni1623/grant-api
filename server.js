@@ -68,9 +68,8 @@ const corsOptions = {
     const allowedOrigins = [
       // Production URLs
       'https://grant-app-five.vercel.app',
-      'https://grant-app-five.vercel.app/',
-      'grantus.net',
-      'grantus.net/',
+      'https://grantus.net',
+      'http://grantus.net',
       
       // Development URLs
       'http://localhost:3000',
@@ -79,17 +78,15 @@ const corsOptions = {
       'http://127.0.0.1:3000',
       'http://127.0.0.1:5173',
       'http://127.0.0.1:3001',
-      
-      // Add your custom domains here
       'http://localhost:8080',
-      'http://192.168.1.100:3000', // Replace with your local IP if needed
+      'http://192.168.1.100:3000',
     ];
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.log(`CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      console.log(`⚠️  CORS blocked origin: ${origin}`);
+      callback(null, true); // Allow anyway for debugging, change to callback(new Error('Not allowed by CORS')) in production
     }
   },
   credentials: true,
@@ -124,8 +121,11 @@ if (isDevelopment) {
   app.use(morgan('dev'));
 }
 
-// CORS middleware
+// CORS middleware - MUST come before routes
 app.use(cors(corsOptions));
+
+// Preflight CORS handling - MUST come after cors() but before routes
+app.options('*', cors(corsOptions));
 
 // Body parsing middleware
 app.use(express.json({ limit: '50mb' }));
@@ -244,9 +244,6 @@ app.get('/test', (req, res) => {
   });
 });
 
-// Preflight CORS handling
-app.options('*', cors(corsOptions));
-
 // 404 handler
 app.use((req, res, next) => {
   res.status(404).json({
@@ -334,7 +331,7 @@ server = app.listen(ENV.PORT, async () => {
   console.log(`🌍 Environment: ${ENV.NODE_ENV}`);
   console.log(`🔗 Local: http://localhost:${ENV.PORT}`);
   if (isDevelopment) {
-    console.log(`🔗 Network: http://192.168.1.100:${ENV.PORT}`); // Replace with your actual IP
+    console.log(`🔗 Network: http://192.168.1.100:${ENV.PORT}`);
   }
   console.log(`\n📋 Available routes:`);
   console.log(`   GET  /health - Health check`);
