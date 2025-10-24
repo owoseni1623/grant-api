@@ -69,6 +69,8 @@ const corsOptions = {
       // Production URLs
       'https://grant-app-five.vercel.app',
       'https://grant-app-five.vercel.app/',
+      'grantus.net',
+      'grantus.net/',
       
       // Development URLs
       'http://localhost:3000',
